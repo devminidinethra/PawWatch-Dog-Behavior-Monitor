@@ -36,3 +36,20 @@ ALERT_EMOTIONS   = {"angry","sad"}
 ALERT_COOLDOWN   = 60
 HISTORY_MAX      = 300
 MODEL_LOCAL_PATH = "models/final_model.h5"
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  SESSION STATE
+# ══════════════════════════════════════════════════════════════════════════════
+_defaults = dict(
+    model=None, yolo=None,
+    history=[], alerts=[], last_alert_ts=0,
+    camera_running=False,
+    pos_history=deque(maxlen=15),
+    beh_window=deque(maxlen=10),
+    prev_frame=None,
+    phone_number="", twilio_sid="", twilio_token="", twilio_from="",
+    alerts_enabled=False,
+)
+for k, v in _defaults.items():
+    if k not in st.session_state:
+        st.session_state[k] = v
