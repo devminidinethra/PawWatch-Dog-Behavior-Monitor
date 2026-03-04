@@ -592,3 +592,93 @@ t_live, t_demo, t_hist, t_alrt = st.tabs([
     "📹  Live Camera", "🖼️  Demo Upload",
     "📊  Behavior History", "🔔  Alert Status",
 ])
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TAB 1 — LIVE CAMERA
+# ─────────────────────────────────────────────────────────────────────────────
+with t_live:
+    st.markdown(
+        '<div class="callout info"><span class="callout-ico">💡</span>'
+        '<span><strong>Live camera</strong> works when running this app locally. '
+        'On Streamlit Cloud use the <strong>Demo Upload</strong> tab instead.</span></div>',
+        unsafe_allow_html=True)
+
+    feed_col, panel_col = st.columns([3, 1], gap="large")
+
+    with panel_col:
+        st.markdown('<div class="sec-title">🐕 Current Behavior</div>', unsafe_allow_html=True)
+        emo_ph = st.empty(); conf_ph = st.empty()
+        pace_ph = st.empty(); tail_ph = st.empty()
+        st.markdown('<div class="sec-title" style="margin-top:16px">📊 Probabilities</div>',
+                    unsafe_allow_html=True)
+        bar_phs = {c: st.empty() for c in CLASSES}
+        emo_ph.markdown(
+            '<div class="empty-state" style="padding:22px 14px">'
+            '<div class="e-ico">🐕</div>'
+            '<div class="e-ttl">Waiting…</div>'
+            '<div class="e-sub">Press Start Camera</div></div>',
+            unsafe_allow_html=True)
+
+    with feed_col:
+        bc1, bc2, bc3 = st.columns([1, 1, 2])
+        start_btn = bc1.button("▶️  Start Camera", use_container_width=True)
+        stop_btn  = bc2.button("⏹️  Stop",          use_container_width=True)
+        live_ph   = bc3.empty()
+        frm_ph = st.empty(); sts_ph = st.empty()
+
+    if start_btn:
+        st.session_state.camera_running = True
+        st.session_state.beh_window.clear()
+        st.session_state.pos_history.clear()
+    if stop_btn:
+        st.session_state.camera_running = False
+
+    if st.session_state.camera_running:
+        src = rtsp_url.strip() if rtsp_url.strip() else int(cam_index)
+        cap = cv2.VideoCapture(src)
+        if not cap.isOpened():
+            sts_ph.error(f"❌  Cannot open camera: {src}")
+            st.session_state.camera_running = False
+        else:
+            live_ph.markdown(
+                '<div class="live-badge"><div class="live-dot"></div>LIVE</div>',
+                unsafe_allow_html=True)
+            while st.session_state.camera_running:
+                ret, frame = cap.read()
+                if not ret: time.sleep(0.1); continue
+                frame    = cv2.resize(frame, (640, 480))
+                ann, res = process_frame(frame, st.session_state.model,
+                                          st.session_state.yolo, smooth=True)
+                frm_ph.image(cv2.cvtColor(ann, cv2.COLOR_BGR2RGB),
+                             use_container_width=True)
+                if res["dog_found"]:
+                    emo = res["emotion"]
+                    c_ = C_HEX.get(emo,"#64748b")
+                    bg_= C_BG.get(emo,"#f1f5f9")
+                    bd_= C_BD.get(emo,"#cbd5e1")
+                    emo_ph.markdown(
+                        f'<div class="emo-card" style="background:{bg_};border-color:{bd_}">'
+                        f'<div class="ec-emoji">{EMOJI[emo]}</div>'
+                        f'<div class="ec-name" style="color:{c_}">{emo.upper()}</div>'
+                        f'<div class="ec-conf">Confidence: {res["confidence"]:.1%}</div>'
+                        f'</div>', unsafe_allow_html=True)
+                    conf_ph.markdown(
+                        f'<div class="stat-row"><span class="stat-lbl">Confidence</span>'
+                        f'<span class="stat-val" style="color:{c_}">{res["confidence"]:.1%}</span></div>',
+                        unsafe_allow_html=True)
+                    pace_ph.markdown(
+                        f'<div class="stat-row"><span class="stat-lbl">Pacing Score</span>'
+                        f'<span class="stat-val">{res["pacing"]:.0f}</span></div>',
+                        unsafe_allow_html=True)
+                    tail_ph.markdown(
+                        f'<div class="stat-row"><span class="stat-lbl">Tail Movement</span>'
+                        f'<span class="stat-val">{res["tail"]:.1f}</span></div>',
+                        unsafe_allow_html=True)
+                    for cls in CLASSES:
+                        bar_phs[cls].markdown(
+                            _prob_bar(cls, res["probs"].get(cls, 0.0)),
+                            unsafe_allow_html=True)
+                    record(res)
+                time.sleep(0.06)
+            cap.release(); live_ph.empty()
+            sts_ph.info("⏹️  Camera stopped.")
