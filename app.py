@@ -792,3 +792,87 @@ with t_demo:
                     '<div class="e-sub">No dog found in any sampled frame. '
                     'Try lowering the detection confidence threshold in the sidebar.</div></div>',
                     unsafe_allow_html=True)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TAB 3 — BEHAVIOR HISTORY
+# ─────────────────────────────────────────────────────────────────────────────
+with t_hist:
+    hist = st.session_state.history
+    if not hist:
+        st.markdown(
+            '<div class="empty-state" style="margin-top:10px">'
+            '<div class="e-ico">📊</div>'
+            '<div class="e-ttl">No data yet</div>'
+            '<div class="e-sub">Start the live camera or upload images/videos to '
+            'begin collecting your dog\'s behavior data.</div></div>',
+            unsafe_allow_html=True)
+    else:
+        left, right = st.columns([5, 7], gap="large")
+
+        with left:
+            st.markdown('<div class="sec-title">📊 Emotion Distribution</div>',
+                        unsafe_allow_html=True)
+            tally   = Counter(h["emotion"] for h in hist)
+            total_h = len(hist)
+            st.markdown(
+                "".join(_dist_bar(cls, tally.get(cls,0)/total_h if total_h else 0,
+                                   tally.get(cls,0)) for cls in CLASSES),
+                unsafe_allow_html=True)
+
+            st.markdown('<div class="sec-title" style="margin-top:20px">📈 Session Stats</div>',
+                        unsafe_allow_html=True)
+            dom   = max(tally, key=tally.get) if tally else "—"
+            avg_p = round(np.mean([h["pacing"] for h in hist]), 1)
+            avg_t = round(np.mean([h["tail"]   for h in hist]), 1)
+            st.markdown(
+                f'<div class="cfg-box">'
+                f'<div class="cfg-row"><span class="cfg-k">Total frames</span>'
+                f'<span class="cfg-v">{total_h}</span></div>'
+                f'<div class="cfg-row"><span class="cfg-k">Avg confidence</span>'
+                f'<span class="cfg-v">{avg_conf:.1f}%</span></div>'
+                f'<div class="cfg-row"><span class="cfg-k">Avg pacing</span>'
+                f'<span class="cfg-v">{avg_p}</span></div>'
+                f'<div class="cfg-row"><span class="cfg-k">Avg tail movement</span>'
+                f'<span class="cfg-v">{avg_t}</span></div>'
+                f'<div class="cfg-row"><span class="cfg-k">Dominant emotion</span>'
+                f'<span class="cfg-v" style="color:{C_HEX.get(dom,"#1e293b")}">'
+                f'{EMOJI.get(dom,"")} {dom.upper()}</span></div>'
+                f'</div>', unsafe_allow_html=True)
+
+        with right:
+            fc1, fc2 = st.columns(2)
+            sort_asc   = fc1.toggle("Show oldest first", False)
+            emo_filter = fc2.multiselect("Filter by emotion", CLASSES, default=CLASSES)
+
+            display = [h for h in hist if h["emotion"] in emo_filter]
+            if not sort_asc: display = list(reversed(display))
+
+            st.markdown(
+                f'<div class="sec-title">🕐 Detection Log '
+                f'<span style="font-size:.72rem;color:#64748b;font-weight:500">'
+                f'— {len(display)} records</span></div>',
+                unsafe_allow_html=True)
+
+            if display:
+                st.markdown(
+                    "".join(
+                        f'<div class="hist-row">'
+                        f'<span class="hist-time">{e["ts"]}</span>'
+                        f'{_badge(e["emotion"])}'
+                        f'<span class="hist-conf">{e["confidence"]:.1f}%</span>'
+                        f'<span class="hist-meta">Pace {e["pacing"]:.0f} · Tail {e["tail"]:.1f}</span>'
+                        f'</div>'
+                        for e in display[:100]),
+                    unsafe_allow_html=True)
+            else:
+                st.markdown(
+                    '<div class="empty-state" style="padding:20px">'
+                    '<div class="e-sub">No records match the selected filter.</div>'
+                    '</div>', unsafe_allow_html=True)
+
+        st.markdown("<div style='margin-top:12px'></div>", unsafe_allow_html=True)
+        exp_col, _ = st.columns([2, 5])
+        if exp_col.button("📥  Export History to CSV", use_container_width=True):
+            csv = pd.DataFrame(hist).to_csv(index=False)
+            st.download_button("⬇️  Download pawwatch_history.csv",
+                               csv, "pawwatch_history.csv", "text/csv")
