@@ -389,3 +389,91 @@ def process_frame(frame, model, yolo, smooth=True):
             cv2.putText(frame,lbl,(x1+5,y1-4),cv2.FONT_HERSHEY_SIMPLEX,.65,(255,255,255),2)
     st.session_state.prev_frame = frame.copy()
     return frame, res
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  HISTORY & ALERTS
+# ══════════════════════════════════════════════════════════════════════════════
+def maybe_alert(emotion):
+    now = time.time()
+    if emotion not in ALERT_EMOTIONS: return
+    if now - st.session_state.last_alert_ts < ALERT_COOLDOWN: return
+    emoji_map = {"angry":"😠","sad":"😢"}
+    msg = (f"🐾 *PawWatch Alert* [{datetime.now().strftime('%H:%M:%S')}]\n\n"
+           f"{emoji_map.get(emotion,'')} Your dog appears *{emotion.upper()}*!\n"
+           f"Please check in on them.")
+    entry = {"ts":datetime.now().strftime("%H:%M:%S"),
+             "emotion":emotion,"message":msg,"sms_sent":False}
+    st.session_state.alerts.append(entry)
+    st.session_state.last_alert_ts = now
+    if (st.session_state.alerts_enabled
+            and st.session_state.twilio_sid
+            and st.session_state.phone_number):
+        try:
+            from twilio.rest import Client
+            Client(st.session_state.twilio_sid,
+                   st.session_state.twilio_token).messages.create(
+                body=msg,
+                from_=f"whatsapp:{st.session_state.twilio_from}",
+                to=f"whatsapp:{st.session_state.phone_number}")
+            entry["sms_sent"] = True
+        except Exception as e:
+            entry["sms_error"] = str(e)
+
+def record(res):
+    if not res["dog_found"]: return
+    st.session_state.history.append({
+        "ts":datetime.now().strftime("%H:%M:%S"),
+        "emotion":res["emotion"],
+        "confidence":round(res["confidence"]*100,1),
+        "pacing":res["pacing"], "tail":res["tail"],
+    })
+    if len(st.session_state.history) > HISTORY_MAX:
+        st.session_state.history.pop(0)
+    maybe_alert(res["emotion"])
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  HTML BUILDERS
+# ══════════════════════════════════════════════════════════════════════════════
+def _badge(emo):
+    c=C_HEX.get(emo,"#64748b"); bg=C_BG.get(emo,"#f1f5f9"); bd=C_BD.get(emo,"#cbd5e1")
+    return (f'<span class="emo-badge" style="color:{c};background:{bg};border-color:{bd}">'
+            f'{EMOJI.get(emo,"")} {emo.upper()}</span>')
+
+def _prob_bar(cls, p):
+    c = C_HEX.get(cls,"#64748b")
+    return (f'<div class="prob-wrap">'
+            f'<div class="prob-head">'
+            f'<span style="color:#1e293b">{EMOJI[cls]} {cls.capitalize()}</span>'
+            f'<span style="color:{c}">{p:.0%}</span></div>'
+            f'<div class="prob-track">'
+            f'<div class="prob-fill" style="width:{int(p*100)}%;background:{c}"></div>'
+            f'</div></div>')
+
+def _dist_bar(cls, pct, cnt):
+    c = C_HEX.get(cls,"#64748b")
+    return (f'<div class="dist-wrap">'
+            f'<div class="dist-head">'
+            f'<span class="dist-name" style="color:{c}">{EMOJI[cls]} {cls.upper()}</span>'
+            f'<span class="dist-sub">{pct:.1%} · {cnt} frames</span></div>'
+            f'<div class="dist-track">'
+            f'<div class="dist-fill" style="width:{int(pct*100)}%;background:{c}"></div>'
+            f'</div></div>')
+
+def _emo_result(emo, conf, pacing=None, tail=None):
+    c=C_HEX.get(emo,"#64748b"); bg=C_BG.get(emo,"#f1f5f9"); bd=C_BD.get(emo,"#cbd5e1")
+    stats = ""
+    if pacing is not None:
+        stats += (f'<div class="stat-row">'
+                  f'<span class="stat-lbl">Pacing Score</span>'
+                  f'<span class="stat-val">{pacing:.0f}</span></div>')
+    if tail is not None:
+        stats += (f'<div class="stat-row">'
+                  f'<span class="stat-lbl">Tail Movement</span>'
+                  f'<span class="stat-val">{tail:.1f}</span></div>')
+    return (f'<div class="result-card">'
+            f'<div class="emo-card" style="background:{bg};border-color:{bd}">'
+            f'<div class="ec-emoji">{EMOJI.get(emo,"")}</div>'
+            f'<div class="ec-name" style="color:{c}">{emo.upper()}</div>'
+            f'<div class="ec-conf">Confidence: '
+            f'<strong style="color:{c};font-size:1rem">{conf:.1%}</strong></div>'
+            f'</div>{stats}</div>')
