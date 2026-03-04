@@ -876,3 +876,87 @@ with t_hist:
             csv = pd.DataFrame(hist).to_csv(index=False)
             st.download_button("⬇️  Download pawwatch_history.csv",
                                csv, "pawwatch_history.csv", "text/csv")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TAB 4 — ALERT STATUS
+# ─────────────────────────────────────────────────────────────────────────────
+with t_alrt:
+    log_col, cfg_col = st.columns([3, 2], gap="large")
+
+    with log_col:
+        st.markdown('<div class="sec-title">🚨 Alert Log</div>', unsafe_allow_html=True)
+        alerts = st.session_state.alerts
+        if not alerts:
+            st.markdown(
+                '<div class="empty-state"><div class="e-ico">✅</div>'
+                '<div class="e-ttl">No alerts this session</div>'
+                '<div class="e-sub">Alerts fire automatically when your dog shows '
+                '<strong>ANGRY</strong> or <strong>SAD</strong> emotions.</div></div>',
+                unsafe_allow_html=True)
+        else:
+            for a in reversed(alerts):
+                emo = a["emotion"]
+                c_  = C_HEX.get(emo,"#dc2626")
+                bg_ = C_BG.get(emo,"#fee2e2")
+                bd_ = C_BD.get(emo,"#fca5a5")
+                if a.get("sms_sent"):
+                    sms = '<div class="sms-ok">✓ WhatsApp message delivered</div>'
+                elif "sms_error" in a:
+                    sms = f'<div class="sms-err">✗ SMS failed — {a["sms_error"]}</div>'
+                elif st.session_state.alerts_enabled:
+                    sms = '<div class="sms-ok">✓ WhatsApp sent</div>'
+                else:
+                    sms = '<div class="sms-off">WhatsApp not configured</div>'
+                st.markdown(
+                    f'<div class="alert-card" style="background:{bg_};border-color:{bd_}">'
+                    f'<div class="alert-ico">{EMOJI.get(emo,"🚨")}</div>'
+                    f'<div class="alert-body">'
+                    f'<div class="alert-ttl" style="color:{c_}">{emo.upper()} detected · {a["ts"]}</div>'
+                    f'<div class="alert-msg">{a["message"]}</div>'
+                    f'{sms}</div></div>', unsafe_allow_html=True)
+
+    with cfg_col:
+        st.markdown('<div class="sec-title">⚙️ Configuration</div>', unsafe_allow_html=True)
+        sms_s  = "🟢 Enabled" if st.session_state.alerts_enabled else "🔴 Disabled"
+        ph_disp = ("••••" + st.session_state.phone_number[-4:]
+                   if len(st.session_state.phone_number) > 4 else "—")
+        st.markdown(
+            f'<div class="cfg-box">'
+            f'<div class="cfg-row"><span class="cfg-k">WhatsApp alerts</span>'
+            f'<span class="cfg-v">{sms_s}</span></div>'
+            f'<div class="cfg-row"><span class="cfg-k">Trigger emotions</span>'
+            f'<span class="cfg-v">😠 Angry · 😢 Sad</span></div>'
+            f'<div class="cfg-row"><span class="cfg-k">Cooldown</span>'
+            f'<span class="cfg-v">{ALERT_COOLDOWN} seconds</span></div>'
+            f'<div class="cfg-row"><span class="cfg-k">Alerts this session</span>'
+            f'<span class="cfg-v" style="color:{"#dc2626" if alerts else "#1e293b"}">'
+            f'{len(alerts)}</span></div>'
+            f'<div class="cfg-row"><span class="cfg-k">Owner phone</span>'
+            f'<span class="cfg-v" style="font-size:.79rem">{ph_disp}</span></div>'
+            f'</div>', unsafe_allow_html=True)
+
+        st.markdown('<div class="sec-title" style="margin-top:20px">📖 How Alerts Work</div>',
+                    unsafe_allow_html=True)
+        st.markdown(
+            '<div class="how-box">'
+            '<div class="how-step"><div class="how-num">1</div>'
+            '<div>PawWatch monitors your dog in real time using YOLOv8 + MobileNetV2.</div></div>'
+            '<div class="how-step"><div class="how-num">2</div>'
+            '<div><strong>ANGRY</strong> or <strong>SAD</strong> triggers an alert immediately.</div></div>'
+            '<div class="how-step"><div class="how-num">3</div>'
+            '<div>A 60-second cooldown prevents repeated notifications.</div></div>'
+            '<div class="how-step"><div class="how-num">4</div>'
+            '<div>A <strong>WhatsApp message</strong> is sent via Twilio if credentials are configured in the sidebar. Must join sandbox first.</div></div>'
+            '<div class="how-step"><div class="how-num">5</div>'
+            '<div>All alerts are logged here for review throughout the session.</div></div>'
+            '</div>', unsafe_allow_html=True)
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  FOOTER
+# ══════════════════════════════════════════════════════════════════════════════
+st.markdown(
+    '<div class="pw-footer">'
+    '<span>🐾 <strong style="color:#64748b">PawWatch</strong> '
+    '— Dog Behavior &amp; Emotion Monitoring System</span>'
+    '<span>MobileNetV2 · YOLOv8n · University of Greenwich · BSc Computing · 001512468</span>'
+    '</div>', unsafe_allow_html=True)
