@@ -20,3 +20,19 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  CONSTANTS
+# ══════════════════════════════════════════════════════════════════════════════
+IMG_SIZE  = 96
+CLASSES   = ["angry", "happy", "relaxed", "sad"]
+EMOJI     = {"angry":"😠","happy":"😊","relaxed":"😌","sad":"😢","no_dog":"🐕"}
+C_HEX     = {"angry":"#dc2626","happy":"#16a34a","relaxed":"#2563eb","sad":"#7c3aed"}
+C_BG      = {"angry":"#fee2e2","happy":"#dcfce7","relaxed":"#dbeafe","sad":"#ede9fe"}
+C_BD      = {"angry":"#fca5a5","happy":"#86efac","relaxed":"#93c5fd","sad":"#c4b5fd"}
+C_BGT     = {"angry":(60,75,220),"happy":(60,180,80),"relaxed":(200,130,50),"sad":(160,80,200)}
+DOG_CLASS        = 16
+ALERT_EMOTIONS   = {"angry","sad"}
+ALERT_COOLDOWN   = 60
+HISTORY_MAX      = 300
+MODEL_LOCAL_PATH = "models/final_model.h5"
