@@ -477,3 +477,118 @@ def _emo_result(emo, conf, pacing=None, tail=None):
             f'<div class="ec-conf">Confidence: '
             f'<strong style="color:{c};font-size:1rem">{conf:.1%}</strong></div>'
             f'</div>{stats}</div>')
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  SIDEBAR
+# ══════════════════════════════════════════════════════════════════════════════
+with st.sidebar:
+    st.markdown("""
+    <div class="sb-brand">
+        <span class="sb-logo">🐾</span>
+        <div>
+            <div class="sb-name">PawWatch</div>
+            <div class="sb-sub">Pet Behavior Monitor</div>
+        </div>
+    </div>""", unsafe_allow_html=True)
+
+    st.divider()
+    st.markdown('<div class="sb-section">📷 Camera</div>', unsafe_allow_html=True)
+    cam_index   = st.number_input("Camera index", 0, 10, 0)
+    rtsp_url    = st.text_input("RTSP stream URL", placeholder="rtsp://…",
+                                 help="Leave blank to use webcam")
+    conf_thresh = st.slider("Detection confidence", 0.2, 0.9, 0.35, 0.05)
+
+    st.divider()
+    st.markdown('<div class="sb-section">💬 WhatsApp Alerts</div>', unsafe_allow_html=True)
+    st.session_state.alerts_enabled = st.toggle(
+        "Enable WhatsApp alerts via Twilio", st.session_state.alerts_enabled)
+    if st.session_state.alerts_enabled:
+        st.session_state.phone_number = st.text_input(
+            "Your WhatsApp number", st.session_state.phone_number,
+            placeholder="+94761234567",
+            help="Include country code — this is your personal WhatsApp number")
+        st.session_state.twilio_sid   = st.text_input(
+            "Account SID", st.session_state.twilio_sid, type="password")
+        st.session_state.twilio_token = st.text_input(
+            "Auth Token",  st.session_state.twilio_token, type="password")
+        st.session_state.twilio_from  = st.text_input(
+            "Twilio sandbox number", st.session_state.twilio_from,
+            placeholder="+14155238886",
+            help="The Twilio WhatsApp sandbox number is always +14155238886")
+
+    st.divider()
+    if st.button("🗑️  Clear Session Data", use_container_width=True):
+        st.session_state.history = []
+        st.session_state.alerts  = []
+        st.session_state.beh_window.clear()
+        st.session_state.pos_history.clear()
+        st.rerun()
+
+    st.markdown("""
+    <div style="margin-top:20px;padding-top:12px;border-top:1px solid #dde3ec;
+                font-size:.67rem;color:#94a3b8;text-align:center;line-height:1.65">
+        University of Greenwich<br>
+        BSc Computing · 001512468<br>
+        MobileNetV2 + YOLOv8n
+    </div>""", unsafe_allow_html=True)
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  NAVBAR + KPIs
+# ══════════════════════════════════════════════════════════════════════════════
+st.markdown("""
+<div class="pw-nav">
+    <div class="pw-nav-icon">🐾</div>
+    <div>
+        <div class="pw-nav-title">PawWatch</div>
+        <div class="pw-nav-sub">Dog Behavior &amp; Emotion Monitoring · University of Greenwich</div>
+    </div>
+    <div class="pw-nav-badge"><div class="pw-pulse"></div>System Online</div>
+</div>""", unsafe_allow_html=True)
+
+hist     = st.session_state.history
+dominant = Counter(h["emotion"] for h in hist).most_common(1)[0][0] if hist else None
+avg_conf = round(np.mean([h["confidence"] for h in hist]), 1) if hist else 0.0
+n_alerts = len(st.session_state.alerts)
+
+c1, c2, c3, c4 = st.columns(4)
+with c1:
+    st.markdown(
+        f'<div class="kpi-card"><div class="kpi-icon">📸</div>'
+        f'<div class="kpi-num">{len(hist)}</div>'
+        f'<div class="kpi-lbl">Frames Analysed</div></div>',
+        unsafe_allow_html=True)
+with c2:
+    st.markdown(
+        f'<div class="kpi-card"><div class="kpi-icon">🎯</div>'
+        f'<div class="kpi-num">{avg_conf:.1f}<span class="kpi-unit">%</span></div>'
+        f'<div class="kpi-lbl">Avg Confidence</div></div>',
+        unsafe_allow_html=True)
+with c3:
+    ac = "#dc2626" if n_alerts else "#1e293b"
+    st.markdown(
+        f'<div class="kpi-card"><div class="kpi-icon">🔔</div>'
+        f'<div class="kpi-num" style="color:{ac}">{n_alerts}</div>'
+        f'<div class="kpi-lbl">Alerts Fired</div></div>',
+        unsafe_allow_html=True)
+with c4:
+    if dominant:
+        dc=C_HEX[dominant]; dbg=C_BG[dominant]; dbd=C_BD[dominant]
+        st.markdown(
+            f'<div class="kpi-card" style="background:{dbg};border-color:{dbd}">'
+            f'<div class="kpi-icon">{EMOJI[dominant]}</div>'
+            f'<div class="kpi-num" style="color:{dc};font-size:1.45rem">{dominant.upper()}</div>'
+            f'<div class="kpi-lbl">Dominant Emotion</div></div>',
+            unsafe_allow_html=True)
+    else:
+        st.markdown(
+            '<div class="kpi-card"><div class="kpi-icon">🐕</div>'
+            '<div class="kpi-num" style="font-size:1.45rem;color:#94a3b8">—</div>'
+            '<div class="kpi-lbl">Dominant Emotion</div></div>',
+            unsafe_allow_html=True)
+
+st.markdown("<div style='margin-bottom:4px'></div>", unsafe_allow_html=True)
+
+t_live, t_demo, t_hist, t_alrt = st.tabs([
+    "📹  Live Camera", "🖼️  Demo Upload",
+    "📊  Behavior History", "🔔  Alert Status",
+])
