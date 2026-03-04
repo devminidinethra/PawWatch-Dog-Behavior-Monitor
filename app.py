@@ -682,3 +682,113 @@ with t_live:
                 time.sleep(0.06)
             cap.release(); live_ph.empty()
             sts_ph.info("⏹️  Camera stopped.")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TAB 2 — DEMO UPLOAD
+# ─────────────────────────────────────────────────────────────────────────────
+with t_demo:
+    mode = st.radio("What would you like to analyse?",
+                    ["📷  Single Image", "🎬  Video File"], horizontal=True)
+    st.markdown("<div style='margin-top:6px'></div>", unsafe_allow_html=True)
+
+    if "Image" in mode:
+        up = st.file_uploader("Upload a photo of your dog",
+                               type=["jpg","jpeg","png","webp"],
+                               help="Clear, well-lit photos give best results")
+        if up:
+            pil   = Image.open(up).convert("RGB")
+            frame = cv2.cvtColor(np.array(pil), cv2.COLOR_RGB2BGR)
+            with st.spinner("🔍  Analysing…"):
+                ann, res = process_frame(cv2.resize(frame,(640,480)),
+                                          st.session_state.model,
+                                          st.session_state.yolo, smooth=False)
+
+            img_col, res_col = st.columns(2, gap="large")
+            with img_col:
+                st.markdown('<div class="sec-title">📷 Your Photo</div>', unsafe_allow_html=True)
+                st.image(pil, use_container_width=True)
+                st.markdown('<div class="sec-title" style="margin-top:14px">🔍 Detected Region</div>',
+                            unsafe_allow_html=True)
+                st.image(cv2.cvtColor(ann, cv2.COLOR_BGR2RGB), use_container_width=True)
+
+            with res_col:
+                st.markdown('<div class="sec-title">🧠 Analysis Result</div>', unsafe_allow_html=True)
+                if res["dog_found"]:
+                    st.markdown(
+                        _emo_result(res["emotion"], res["confidence"],
+                                    res["pacing"], res["tail"]),
+                        unsafe_allow_html=True)
+                    st.markdown('<div style="margin-top:14px"></div>', unsafe_allow_html=True)
+                    st.markdown('<div class="sec-title">📊 Emotion Probabilities</div>',
+                                unsafe_allow_html=True)
+                    st.markdown(
+                        "".join(_prob_bar(cls, res["probs"].get(cls,0.0)) for cls in CLASSES),
+                        unsafe_allow_html=True)
+                    record(res)
+                else:
+                    st.markdown(
+                        '<div class="empty-state"><div class="e-ico">🔍</div>'
+                        '<div class="e-ttl">No dog detected</div>'
+                        '<div class="e-sub">Try a clearer photo where the dog is '
+                        'fully visible, or lower the detection confidence in the sidebar.</div></div>',
+                        unsafe_allow_html=True)
+    else:
+        up = st.file_uploader("Upload a video of your dog",
+                               type=["mp4","avi","mov","mkv"], help="MP4 recommended")
+        vc1, vc2 = st.columns(2)
+        every_n = vc1.slider("Sample every N frames", 1, 30, 5)
+        max_fr  = vc2.slider("Max frames to process", 10, 300, 80)
+
+        if up and st.button("▶️  Start Video Analysis", use_container_width=True):
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
+                tmp.write(up.read()); tmp_path = tmp.name
+
+            prog    = st.progress(0, text="Starting…")
+            preview = st.empty()
+            rows = []; idx = processed = 0
+            cap  = cv2.VideoCapture(tmp_path)
+
+            while True:
+                ret, frame = cap.read()
+                if not ret or processed >= max_fr: break
+                if idx % every_n == 0:
+                    frame    = cv2.resize(frame, (640,480))
+                    ann, res = process_frame(frame, st.session_state.model,
+                                             st.session_state.yolo, smooth=False)
+                    preview.image(cv2.cvtColor(ann,cv2.COLOR_BGR2RGB),
+                                  caption=f"Frame {idx}", use_container_width=True)
+                    if res["dog_found"]: rows.append({"frame":idx,**res}); record(res)
+                    processed += 1
+                    prog.progress(min(processed/max_fr,1.0), text=f"Analysing frame {idx}…")
+                idx += 1
+            cap.release(); os.unlink(tmp_path); prog.empty(); preview.empty()
+
+            if rows:
+                tally = Counter(r["emotion"] for r in rows)
+                total = sum(tally.values())
+                st.markdown(
+                    f'<div class="callout success"><span class="callout-ico">✅</span>'
+                    f'<span><strong>{processed} frames processed</strong> · '
+                    f'{len(rows)} dog detections · {total} emotion readings</span></div>',
+                    unsafe_allow_html=True)
+                st.markdown('<div class="sec-title">📊 Emotion Distribution</div>',
+                            unsafe_allow_html=True)
+                st.markdown(
+                    "".join(_dist_bar(cls, tally.get(cls,0)/total if total else 0,
+                                      tally.get(cls,0)) for cls in CLASSES),
+                    unsafe_allow_html=True)
+                dv = max(tally, key=tally.get)
+                dc=C_HEX[dv]; dbg=C_BG[dv]; dbd=C_BD[dv]
+                st.markdown(
+                    f'<div class="dom-box" style="background:{dbg};border-color:{dbd}">'
+                    f'<div class="dom-emo">{EMOJI[dv]}</div>'
+                    f'<div><div class="dom-name" style="color:{dc}">Dominant: {dv.upper()}</div>'
+                    f'<div class="dom-sub">{tally[dv]} of {total} frames</div>'
+                    f'</div></div>', unsafe_allow_html=True)
+            else:
+                st.markdown(
+                    '<div class="empty-state"><div class="e-ico">🎬</div>'
+                    '<div class="e-ttl">No dog detected</div>'
+                    '<div class="e-sub">No dog found in any sampled frame. '
+                    'Try lowering the detection confidence threshold in the sidebar.</div></div>',
+                    unsafe_allow_html=True)
