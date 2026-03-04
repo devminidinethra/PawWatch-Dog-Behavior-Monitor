@@ -285,3 +285,107 @@ html, body,
 .pw-footer { margin-top: 50px; padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; font-size: .7rem; color: #94a3b8; }
 </style>
 """, unsafe_allow_html=True)
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  MODEL DOWNLOAD + LOAD
+# ══════════════════════════════════════════════════════════════════════════════
+def download_model_if_needed():
+    if os.path.exists(MODEL_LOCAL_PATH):
+        return MODEL_LOCAL_PATH
+    url = st.secrets.get("MODEL_URL", "")
+    if not url:
+        st.error("❌  MODEL_URL not set in Streamlit Secrets.")
+        st.stop()
+    os.makedirs("models", exist_ok=True)
+    bar = st.progress(0, text="⬇️  Downloading model weights — first load only…")
+    def hook(c, bs, tot):
+        if tot > 0:
+            bar.progress(min(int(c*bs*100/tot), 100)/100,
+                         text=f"⬇️  Downloading… {min(int(c*bs*100/tot),100)}%")
+    try:
+        urllib.request.urlretrieve(url, MODEL_LOCAL_PATH, hook)
+        bar.empty()
+    except Exception as e:
+        bar.empty(); st.error(f"❌  Download failed: {e}"); st.stop()
+    return MODEL_LOCAL_PATH
+
+@st.cache_resource(show_spinner="🧠  Loading emotion model…")
+def load_cnn(path):
+    import keras
+    return keras.models.load_model(path, compile=False)
+
+@st.cache_resource(show_spinner="🔍  Loading YOLOv8…")
+def load_yolo():
+    from ultralytics import YOLO
+    return YOLO("yolov8n.pt")
+
+model_path = download_model_if_needed()
+if st.session_state.model is None: st.session_state.model = load_cnn(model_path)
+if st.session_state.yolo  is None: st.session_state.yolo  = load_yolo()
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  INFERENCE
+# ══════════════════════════════════════════════════════════════════════════════
+def preprocess(crop_bgr):
+    from keras.applications.mobilenet_v2 import preprocess_input
+    rgb = cv2.cvtColor(crop_bgr, cv2.COLOR_BGR2RGB)
+    arr = np.array(Image.fromarray(rgb).resize((IMG_SIZE, IMG_SIZE)), dtype=np.float32)
+    return np.expand_dims(preprocess_input(arr), 0)
+
+def detect_dog(frame, yolo, conf=0.35):
+    best = None
+    for r in yolo(frame, classes=[DOG_CLASS], conf=conf, verbose=False):
+        if r.boxes is None: continue
+        for box in r.boxes:
+            x1,y1,x2,y2 = map(int, box.xyxy[0].tolist())
+            c = float(box.conf[0])
+            if best is None or c > best["conf"]:
+                best = {"bbox":(x1,y1,x2,y2), "conf":c}
+    return best
+
+def classify(crop_bgr, model):
+    p   = model.predict(preprocess(crop_bgr), verbose=0)[0]
+    idx = int(np.argmax(p))
+    return CLASSES[idx], float(p[idx]), {CLASSES[i]: float(p[i]) for i in range(4)}
+
+def calc_pacing(bbox, ph):
+    ph.append(((bbox[0]+bbox[2])/2, (bbox[1]+bbox[3])/2))
+    if len(ph) < 5: return 0.0
+    return float(np.var([p[0] for p in ph]) + np.var([p[1] for p in ph]))
+
+def calc_tail(frame, bbox, prev):
+    if prev is None: return 0.0
+    x1,y1,x2,y2 = bbox
+    ty = min(y1+int(.75*(y2-y1)), frame.shape[0]-1)
+    a = frame[ty:y2,x1:x2].astype(float)
+    b = prev[ty:y2,x1:x2].astype(float)
+    return 0.0 if a.shape!=b.shape or a.size==0 else float(np.mean(np.abs(a-b)))
+
+def process_frame(frame, model, yolo, smooth=True):
+    h, w = frame.shape[:2]
+    det  = detect_dog(frame, yolo)
+    res  = {"dog_found":False,"emotion":"no_dog","confidence":0.0,
+            "probs":{},"pacing":0.0,"tail":0.0,"bbox":None}
+    if det:
+        x1,y1,x2,y2 = det["bbox"]; pad = 20
+        crop = frame[max(0,y1-pad):min(h,y2+pad), max(0,x1-pad):min(w,x2+pad)]
+        if crop.size > 0:
+            raw_emo, conf, probs = classify(crop, model)
+            if smooth:
+                st.session_state.beh_window.append(raw_emo)
+                emotion = Counter(st.session_state.beh_window).most_common(1)[0][0]
+            else:
+                emotion = raw_emo
+            pacing = calc_pacing(det["bbox"], st.session_state.pos_history)
+            tail   = calc_tail(frame, det["bbox"], st.session_state.prev_frame)
+            res.update({"dog_found":True,"emotion":emotion,"confidence":conf,
+                        "probs":probs,"pacing":round(pacing,1),"tail":round(tail,1),
+                        "bbox":det["bbox"]})
+            col = C_BGT.get(emotion,(120,120,120))
+            cv2.rectangle(frame,(x1,y1),(x2,y2),col,2)
+            lbl = f"{EMOJI.get(emotion,'')} {emotion.upper()}  {conf:.0%}"
+            (tw,th),_ = cv2.getTextSize(lbl,cv2.FONT_HERSHEY_SIMPLEX,.65,2)
+            cv2.rectangle(frame,(x1,y1-th-12),(x1+tw+10,y1),col,-1)
+            cv2.putText(frame,lbl,(x1+5,y1-4),cv2.FONT_HERSHEY_SIMPLEX,.65,(255,255,255),2)
+    st.session_state.prev_frame = frame.copy()
+    return frame, res
