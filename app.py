@@ -11,6 +11,7 @@ from datetime import datetime
 
 import cv2, numpy as np, pandas as pd
 import streamlit as st
+import hashlib
 from PIL import Image
 
 # ── Page config ───────────────────────────────────────────────────────────────
@@ -49,6 +50,7 @@ _defaults = dict(
     prev_frame=None,
     phone_number="", twilio_sid="", twilio_token="", twilio_from="",
     alerts_enabled=False,
+    last_upload_hash=None,
 )
 for k, v in _defaults.items():
     if k not in st.session_state:
@@ -696,6 +698,7 @@ with t_demo:
                                type=["jpg","jpeg","png","webp"],
                                help="Clear, well-lit photos give best results")
         if up:
+            file_hash = hashlib.md5(up.getvalue()).hexdigest()
             pil   = Image.open(up).convert("RGB")
             frame = cv2.cvtColor(np.array(pil), cv2.COLOR_RGB2BGR)
             with st.spinner("🔍  Analysing…"):
@@ -721,10 +724,10 @@ with t_demo:
                     st.markdown('<div style="margin-top:14px"></div>', unsafe_allow_html=True)
                     st.markdown('<div class="sec-title">📊 Emotion Probabilities</div>',
                                 unsafe_allow_html=True)
-                    st.markdown(
-                        "".join(_prob_bar(cls, res["probs"].get(cls,0.0)) for cls in CLASSES),
-                        unsafe_allow_html=True)
-                    record(res)
+                    if file_hash != st.session_state.last_upload_hash:
+                        st.session_state.last_upload_hash = file_hash
+                        record(res)
+                        st.rerun()
                 else:
                     st.markdown(
                         '<div class="empty-state"><div class="e-ico">🔍</div>'
@@ -762,6 +765,7 @@ with t_demo:
                     prog.progress(min(processed/max_fr,1.0), text=f"Analysing frame {idx}…")
                 idx += 1
             cap.release(); os.unlink(tmp_path); prog.empty(); preview.empty()
+            st.rerun() 
 
             if rows:
                 tally = Counter(r["emotion"] for r in rows)
