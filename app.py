@@ -1,7 +1,5 @@
 """
 PawWatch — Dog Behavior & Emotion Monitoring System
-Light theme locked via .streamlit/config.toml (no more white-on-white)
-IMG_SIZE=96 | preprocess_input | use_smoothing fix applied
 """
 
 import os
@@ -22,378 +20,6 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
-
-# ══════════════════════════════════════════════════════════════════════════════
-#  CSS
-#  Because config.toml sets base="light", Streamlit already renders all native
-#  widgets with dark text on white backgrounds.  This CSS only needs to:
-#    1. Import custom fonts
-#    2. Style our hand-crafted HTML components
-#    3. Polish a few Streamlit native elements (tabs, buttons, etc.)
-# ══════════════════════════════════════════════════════════════════════════════
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@600;700&display=swap');
-
-/* ─── Root palette ────────────────────────────────────────────────────────── */
-:root {
-  --bg:      #f0f4f8;
-  --card:    #ffffff;
-  --border:  #dde3ec;
-  --text:    #1e293b;
-  --sub:     #64748b;
-  --muted:   #94a3b8;
-  --green:   #16a34a;
-  --green-d: #15803d;
-  --green-l: #dcfce7;
-  --green-b: #86efac;
-  --red:     #dc2626;
-  --red-l:   #fee2e2;
-  --red-b:   #fca5a5;
-  --blue:    #2563eb;
-  --blue-l:  #dbeafe;
-  --blue-b:  #93c5fd;
-  --amber:   #d97706;
-  --amber-l: #fef3c7;
-  --amber-b: #fcd34d;
-  --purp:    #7c3aed;
-  --purp-l:  #ede9fe;
-  --purp-b:  #c4b5fd;
-
-  /* per-emotion */
-  --c-angry:  #dc2626; --bg-angry:  #fee2e2; --bd-angry:  #fca5a5;
-  --c-happy:  #16a34a; --bg-happy:  #dcfce7; --bd-happy:  #86efac;
-  --c-relax:  #2563eb; --bg-relax:  #dbeafe; --bd-relax:  #93c5fd;
-  --c-sad:    #7c3aed; --bg-sad:    #ede9fe; --bd-sad:    #c4b5fd;
-}
-
-/* ─── Global font + background ───────────────────────────────────────────── */
-html, body,
-[data-testid="stApp"],
-[data-testid="stAppViewContainer"] {
-  font-family: 'Plus Jakarta Sans', sans-serif !important;
-  background: var(--bg) !important;
-}
-[data-testid="stHeader"]             { background: transparent !important; }
-[data-testid="stMainBlockContainer"] { padding-top: 0.7rem !important; }
-
-/* ─── Buttons ─────────────────────────────────────────────────────────────── */
-.stButton > button {
-  background: var(--green) !important;
-  color: #fff !important;
-  border: none !important;
-  border-radius: 8px !important;
-  font-family: 'Plus Jakarta Sans', sans-serif !important;
-  font-weight: 700 !important;
-  font-size: 0.85rem !important;
-  padding: .52rem 1.4rem !important;
-  transition: all .18s !important;
-  box-shadow: 0 1px 4px rgba(22,163,74,.22) !important;
-}
-.stButton > button:hover {
-  background: var(--green-d) !important;
-  transform: translateY(-1px) !important;
-  box-shadow: 0 4px 14px rgba(22,163,74,.3) !important;
-}
-[data-testid="stDownloadButton"] button {
-  background: #fff !important;
-  color: var(--green) !important;
-  border: 1.5px solid var(--green) !important;
-}
-[data-testid="stDownloadButton"] button:hover { background: var(--green-l) !important; }
-
-/* ─── Tabs ────────────────────────────────────────────────────────────────── */
-[data-testid="stTabs"] [data-baseweb="tab-list"] {
-  background: #fff !important;
-  border-radius: 10px !important;
-  padding: 4px !important; gap: 3px !important;
-  border: 1px solid var(--border) !important;
-  box-shadow: 0 1px 4px rgba(0,0,0,.05) !important;
-}
-[data-testid="stTabs"] [data-baseweb="tab"] {
-  background: transparent !important;
-  border-radius: 7px !important;
-  color: var(--sub) !important;
-  font-family: 'Plus Jakarta Sans', sans-serif !important;
-  font-weight: 700 !important; font-size: .82rem !important;
-  padding: .42rem 1.1rem !important; transition: all .15s !important;
-}
-[data-testid="stTabs"] [data-baseweb="tab"]:hover {
-  background: var(--bg) !important; color: var(--text) !important;
-}
-[data-testid="stTabs"] [aria-selected="true"] {
-  background: var(--green) !important; color: #fff !important;
-  box-shadow: 0 2px 8px rgba(22,163,74,.25) !important;
-}
-[data-testid="stTabs"] [data-baseweb="tab-border"] { display: none !important; }
-[data-testid="stTabs"] [data-baseweb="tab-panel"]  { padding-top: 18px !important; }
-
-/* ─── Sidebar polish ──────────────────────────────────────────────────────── */
-[data-testid="stSidebar"] {
-  background: #fff !important;
-  border-right: 1px solid var(--border) !important;
-}
-
-/* ─── File uploader ───────────────────────────────────────────────────────── */
-[data-testid="stFileUploader"] {
-  background: #fff !important;
-  border: 2px dashed var(--border) !important;
-  border-radius: 10px !important;
-  transition: border-color .15s !important;
-}
-[data-testid="stFileUploader"]:hover { border-color: var(--green) !important; }
-
-/* ─── Progress bar ────────────────────────────────────────────────────────── */
-[data-testid="stProgressBar"] > div > div { background: var(--green) !important; }
-
-/* ─── Scrollbar ───────────────────────────────────────────────────────────── */
-::-webkit-scrollbar       { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-
-/* ════════════════════════════════════════════════════════════════════════════
-   CUSTOM HTML COMPONENTS
-   All text colours are explicitly set inline — they are independent of
-   Streamlit's theme system.
-════════════════════════════════════════════════════════════════════════════ */
-
-/* ── Top navbar ── */
-.pw-nav {
-  display: flex; align-items: center; gap: 16px;
-  padding: 14px 24px;
-  background: linear-gradient(135deg, #15803d 0%, #16a34a 60%, #22c55e 100%);
-  border-radius: 14px; margin-bottom: 18px;
-  box-shadow: 0 4px 20px rgba(22,163,74,.25);
-}
-.pw-nav-icon  { font-size: 2.6rem; line-height: 1; }
-.pw-nav-title {
-  font-family: 'Sora', sans-serif; font-size: 1.7rem;
-  font-weight: 700; color: #fff; line-height: 1;
-}
-.pw-nav-sub  { font-size: .78rem; color: rgba(255,255,255,.8); margin-top: 4px; }
-.pw-nav-badge {
-  margin-left: auto; display: flex; align-items: center; gap: 8px;
-  background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.4);
-  color: #fff; font-size: .76rem; font-weight: 700;
-  padding: 5px 16px; border-radius: 20px; letter-spacing: .04em;
-  white-space: nowrap;
-}
-.pw-pulse {
-  width: 7px; height: 7px; background: #bbf7d0;
-  border-radius: 50%; animation: pw-p 2s infinite;
-}
-@keyframes pw-p { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
-
-/* ── KPI cards ── */
-.kpi-card {
-  background: #fff; border: 1px solid var(--border);
-  border-radius: 12px; padding: 16px 18px; text-align: center;
-  box-shadow: 0 1px 6px rgba(0,0,0,.04);
-  transition: transform .15s, box-shadow .15s;
-}
-.kpi-card:hover { transform: translateY(-2px); box-shadow: 0 5px 18px rgba(0,0,0,.08); }
-.kpi-icon  { font-size: 1.5rem; margin-bottom: 6px; }
-.kpi-num   {
-  font-family: 'Sora', sans-serif; font-size: 2rem;
-  font-weight: 700; color: #1e293b; line-height: 1;
-}
-.kpi-unit  { font-size: .9rem; color: #64748b; }
-.kpi-lbl   {
-  font-size: .68rem; color: #64748b; text-transform: uppercase;
-  letter-spacing: .09em; font-weight: 700; margin-top: 5px;
-}
-
-/* ── Section title ── */
-.sec-title {
-  font-family: 'Sora', sans-serif; font-size: .95rem; font-weight: 700;
-  color: #1e293b; display: flex; align-items: center; gap: 8px;
-  padding-bottom: 9px; margin-bottom: 13px;
-  border-bottom: 2px solid var(--border);
-}
-
-/* ── Callout ── */
-.callout {
-  display: flex; align-items: flex-start; gap: 12px;
-  padding: 12px 15px; border-radius: 10px; margin-bottom: 16px;
-  font-size: .83rem; line-height: 1.55;
-}
-.callout.info    { background: var(--blue-l);  border: 1px solid var(--blue-b);  color: #1e3a5f; }
-.callout.success { background: var(--green-l); border: 1px solid var(--green-b); color: #14532d; }
-.callout.warn    { background: var(--amber-l); border: 1px solid var(--amber-b); color: #78350f; }
-.callout-ico { font-size: 1.1rem; flex-shrink: 0; margin-top: 2px; }
-
-/* ── Emotion display card ── */
-.emo-card {
-  border-radius: 14px; padding: 22px 18px; text-align: center;
-  border: 1.5px solid; margin-bottom: 12px;
-}
-.emo-card .ec-emoji { font-size: 3.2rem; line-height: 1; margin-bottom: 9px; }
-.emo-card .ec-name  {
-  font-family: 'Sora', sans-serif; font-size: 1.5rem;
-  font-weight: 700; margin-bottom: 6px;
-}
-.emo-card .ec-conf  { font-size: .83rem; color: #64748b; }
-
-/* ── Stat row ── */
-.stat-row {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 10px 14px; background: var(--bg);
-  border-radius: 8px; margin-bottom: 6px;
-  border: 1px solid var(--border); font-size: .84rem;
-}
-.stat-lbl { color: #64748b; font-weight: 500; }
-.stat-val { color: #1e293b; font-weight: 700; }
-
-/* ── Probability bar ── */
-.prob-wrap { margin-bottom: 11px; }
-.prob-head {
-  display: flex; justify-content: space-between;
-  font-size: .8rem; margin-bottom: 5px; font-weight: 700; color: #1e293b;
-}
-.prob-track {
-  background: var(--bg); border-radius: 5px; height: 9px;
-  border: 1px solid var(--border); overflow: hidden;
-}
-.prob-fill { height: 9px; border-radius: 5px; transition: width .4s ease; }
-
-/* ── Distribution bar ── */
-.dist-wrap { margin-bottom: 13px; }
-.dist-head {
-  display: flex; justify-content: space-between;
-  font-size: .82rem; margin-bottom: 5px; font-weight: 700; color: #1e293b;
-}
-.dist-sub  { color: #64748b; font-weight: 500; font-size: .78rem; }
-.dist-track {
-  background: var(--bg); border-radius: 6px; height: 12px;
-  border: 1px solid var(--border); overflow: hidden;
-}
-.dist-fill { height: 12px; border-radius: 6px; }
-
-/* ── History row ── */
-.hist-row {
-  display: flex; align-items: center; gap: 10px;
-  padding: 9px 13px; background: #fff;
-  border: 1px solid var(--border); border-radius: 9px;
-  margin-bottom: 5px; font-size: .81rem;
-  transition: box-shadow .15s;
-}
-.hist-row:hover { box-shadow: 0 2px 10px rgba(0,0,0,.07); }
-.hist-time { color: #94a3b8; font-size: .7rem; min-width: 50px; }
-.hist-conf { color: #64748b; font-size: .73rem; margin-left: 3px; }
-.hist-meta { color: #94a3b8; font-size: .7rem; margin-left: auto; }
-
-/* ── Emotion badge ── */
-.emo-badge {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 3px 10px; border-radius: 20px;
-  font-size: .71rem; font-weight: 800;
-  text-transform: uppercase; letter-spacing: .06em;
-  border: 1.5px solid; min-width: 86px; justify-content: center;
-}
-
-/* ── Alert card ── */
-.alert-card {
-  display: flex; gap: 14px; padding: 14px 16px;
-  border-radius: 12px; border: 1.5px solid; margin-bottom: 10px;
-}
-.alert-ico  { font-size: 1.5rem; flex-shrink: 0; padding-top: 2px; }
-.alert-body { flex: 1; }
-.alert-ttl  { font-weight: 800; font-size: .88rem; margin-bottom: 4px; }
-.alert-msg  { font-size: .79rem; color: #64748b; line-height: 1.5; }
-.sms-ok  { font-size: .72rem; color: #16a34a; font-weight: 700; margin-top: 5px; }
-.sms-err { font-size: .72rem; color: #dc2626; font-weight: 700; margin-top: 5px; }
-.sms-off { font-size: .72rem; color: #94a3b8; margin-top: 5px; }
-
-/* ── Config table ── */
-.cfg-box { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
-.cfg-row {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: .83rem;
-}
-.cfg-row:last-child { border-bottom: none; }
-.cfg-k { color: #64748b; font-weight: 500; }
-.cfg-v { color: #1e293b; font-weight: 700; }
-
-/* ── How-it-works ── */
-.how-box { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
-.how-step {
-  display: flex; gap: 12px; align-items: flex-start;
-  padding: 8px 0; border-bottom: 1px solid var(--border);
-  font-size: .83rem; line-height: 1.55; color: #1e293b;
-}
-.how-step:last-child { border-bottom: none; }
-.how-num {
-  background: var(--green-l); color: #15803d;
-  border: 1px solid var(--green-b);
-  font-weight: 800; font-size: .72rem;
-  width: 22px; height: 22px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0; margin-top: 2px;
-}
-
-/* ── Empty state ── */
-.empty-state {
-  background: #fff; border: 1.5px dashed #cbd5e1;
-  border-radius: 14px; padding: 38px 26px; text-align: center;
-}
-.e-ico { font-size: 2.8rem; margin-bottom: 10px; }
-.e-ttl { font-family: 'Sora', sans-serif; font-size: 1rem; font-weight: 700; color: #1e293b; margin-bottom: 7px; }
-.e-sub { font-size: .82rem; color: #64748b; line-height: 1.6; }
-
-/* ── Live indicator ── */
-.live-badge {
-  display: inline-flex; align-items: center; gap: 7px;
-  background: #fee2e2; color: #dc2626;
-  border: 1.5px solid #fca5a5;
-  font-size: .74rem; font-weight: 800;
-  padding: 5px 12px; border-radius: 20px; letter-spacing: .07em;
-}
-.live-dot {
-  width: 7px; height: 7px; background: #dc2626;
-  border-radius: 50%; animation: blink 1s infinite;
-}
-@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
-
-/* ── Result card ── */
-.result-card {
-  background: #fff; border: 1px solid var(--border);
-  border-radius: 14px; padding: 20px;
-  box-shadow: 0 2px 10px rgba(0,0,0,.05);
-}
-
-/* ── Dominant emotion box ── */
-.dom-box {
-  border-radius: 12px; border: 1.5px solid;
-  padding: 14px 18px; margin-top: 12px;
-  display: flex; align-items: center; gap: 14px;
-}
-.dom-emo  { font-size: 2rem; }
-.dom-name { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 1rem; }
-.dom-sub  { font-size: .76rem; color: #64748b; margin-top: 2px; }
-
-/* ── Sidebar brand ── */
-.sb-brand {
-  padding: 10px 0 6px; display: flex; align-items: center; gap: 12px;
-}
-.sb-logo { font-size: 2rem; }
-.sb-name { font-family: 'Sora', sans-serif; font-size: 1.1rem; font-weight: 700; color: #1e293b; }
-.sb-sub  { font-size: .68rem; color: #64748b; margin-top: 1px; }
-.sb-section {
-  font-size: .68rem; font-weight: 800; text-transform: uppercase;
-  letter-spacing: .1em; color: #64748b;
-  margin: 14px 0 6px; padding-bottom: 4px;
-  border-bottom: 1px solid var(--border);
-}
-
-/* ── Footer ── */
-.pw-footer {
-  margin-top: 50px; padding: 16px 24px;
-  border-top: 1px solid var(--border);
-  display: flex; justify-content: space-between;
-  align-items: center; font-size: .7rem; color: #94a3b8;
-}
-</style>
-""", unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  CONSTANTS
@@ -427,6 +53,238 @@ _defaults = dict(
 for k, v in _defaults.items():
     if k not in st.session_state:
         st.session_state[k] = v
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  CSS
+# ══════════════════════════════════════════════════════════════════════════════
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@600;700&display=swap');
+
+:root {
+  --bg:      #f0f4f8;
+  --card:    #ffffff;
+  --border:  #dde3ec;
+  --text:    #1e293b;
+  --sub:     #64748b;
+  --muted:   #94a3b8;
+  --green:   #16a34a;
+  --green-d: #15803d;
+  --green-l: #dcfce7;
+  --green-b: #86efac;
+  --red:     #dc2626;
+  --red-l:   #fee2e2;
+  --red-b:   #fca5a5;
+  --blue:    #2563eb;
+  --blue-l:  #dbeafe;
+  --blue-b:  #93c5fd;
+  --amber:   #d97706;
+  --amber-l: #fef3c7;
+  --amber-b: #fcd34d;
+  --purp:    #7c3aed;
+  --purp-l:  #ede9fe;
+  --purp-b:  #c4b5fd;
+
+  --c-angry:  #dc2626; --bg-angry:  #fee2e2; --bd-angry:  #fca5a5;
+  --c-happy:  #16a34a; --bg-happy:  #dcfce7; --bd-happy:  #86efac;
+  --c-relax:  #2563eb; --bg-relax:  #dbeafe; --bd-relax:  #93c5fd;
+  --c-sad:    #7c3aed; --bg-sad:    #ede9fe; --bd-sad:    #c4b5fd;
+}
+
+html, body,
+[data-testid="stApp"],
+[data-testid="stAppViewContainer"] {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  background: var(--bg) !important;
+}
+[data-testid="stHeader"]             { background: transparent !important; }
+[data-testid="stMainBlockContainer"] { padding-top: 0.7rem !important; }
+
+.stButton > button {
+  background: var(--green) !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 8px !important;
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-weight: 700 !important;
+  font-size: 0.85rem !important;
+  padding: .52rem 1.4rem !important;
+  transition: all .18s !important;
+  box-shadow: 0 1px 4px rgba(22,163,74,.22) !important;
+}
+.stButton > button:hover {
+  background: var(--green-d) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 14px rgba(22,163,74,.3) !important;
+}
+[data-testid="stDownloadButton"] button {
+  background: #fff !important;
+  color: var(--green) !important;
+  border: 1.5px solid var(--green) !important;
+}
+[data-testid="stDownloadButton"] button:hover { background: var(--green-l) !important; }
+
+[data-testid="stTabs"] [data-baseweb="tab-list"] {
+  background: #fff !important;
+  border-radius: 10px !important;
+  padding: 4px !important; gap: 3px !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,.05) !important;
+}
+[data-testid="stTabs"] [data-baseweb="tab"] {
+  background: transparent !important;
+  border-radius: 7px !important;
+  color: var(--sub) !important;
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-weight: 700 !important; font-size: .82rem !important;
+  padding: .42rem 1.1rem !important; transition: all .15s !important;
+}
+[data-testid="stTabs"] [data-baseweb="tab"]:hover {
+  background: var(--bg) !important; color: var(--text) !important;
+}
+[data-testid="stTabs"] [aria-selected="true"] {
+  background: var(--green) !important; color: #fff !important;
+  box-shadow: 0 2px 8px rgba(22,163,74,.25) !important;
+}
+[data-testid="stTabs"] [data-baseweb="tab-border"] { display: none !important; }
+[data-testid="stTabs"] [data-baseweb="tab-panel"]  { padding-top: 18px !important; }
+
+[data-testid="stSidebar"] {
+  background: #fff !important;
+  border-right: 1px solid var(--border) !important;
+}
+
+[data-testid="stFileUploader"] {
+  background: #fff !important;
+  border: 2px dashed var(--border) !important;
+  border-radius: 10px !important;
+  transition: border-color .15s !important;
+}
+[data-testid="stFileUploader"]:hover { border-color: var(--green) !important; }
+
+[data-testid="stProgressBar"] > div > div { background: var(--green) !important; }
+
+::-webkit-scrollbar       { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+/* ── component classes (navbar, cards, badges, bars, etc.) ── */
+.pw-nav {
+  display: flex; align-items: center; gap: 16px;
+  padding: 14px 24px;
+  background: linear-gradient(135deg, #15803d 0%, #16a34a 60%, #22c55e 100%);
+  border-radius: 14px; margin-bottom: 18px;
+  box-shadow: 0 4px 20px rgba(22,163,74,.25);
+}
+.pw-nav-icon  { font-size: 2.6rem; line-height: 1; }
+.pw-nav-title { font-family: 'Sora', sans-serif; font-size: 1.7rem; font-weight: 700; color: #fff; line-height: 1; }
+.pw-nav-sub   { font-size: .78rem; color: rgba(255,255,255,.8); margin-top: 4px; }
+.pw-nav-badge {
+  margin-left: auto; display: flex; align-items: center; gap: 8px;
+  background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.4);
+  color: #fff; font-size: .76rem; font-weight: 700;
+  padding: 5px 16px; border-radius: 20px; letter-spacing: .04em; white-space: nowrap;
+}
+.pw-pulse { width: 7px; height: 7px; background: #bbf7d0; border-radius: 50%; animation: pw-p 2s infinite; }
+@keyframes pw-p { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
+
+.kpi-card {
+  background: #fff; border: 1px solid var(--border);
+  border-radius: 12px; padding: 16px 18px; text-align: center;
+  box-shadow: 0 1px 6px rgba(0,0,0,.04);
+  transition: transform .15s, box-shadow .15s;
+}
+.kpi-card:hover { transform: translateY(-2px); box-shadow: 0 5px 18px rgba(0,0,0,.08); }
+.kpi-icon  { font-size: 1.5rem; margin-bottom: 6px; }
+.kpi-num   { font-family: 'Sora', sans-serif; font-size: 2rem; font-weight: 700; color: #1e293b; line-height: 1; }
+.kpi-unit  { font-size: .9rem; color: #64748b; }
+.kpi-lbl   { font-size: .68rem; color: #64748b; text-transform: uppercase; letter-spacing: .09em; font-weight: 700; margin-top: 5px; }
+
+.sec-title {
+  font-family: 'Sora', sans-serif; font-size: .95rem; font-weight: 700;
+  color: #1e293b; display: flex; align-items: center; gap: 8px;
+  padding-bottom: 9px; margin-bottom: 13px; border-bottom: 2px solid var(--border);
+}
+
+.callout { display: flex; align-items: flex-start; gap: 12px; padding: 12px 15px; border-radius: 10px; margin-bottom: 16px; font-size: .83rem; line-height: 1.55; }
+.callout.info    { background: var(--blue-l);  border: 1px solid var(--blue-b);  color: #1e3a5f; }
+.callout.success { background: var(--green-l); border: 1px solid var(--green-b); color: #14532d; }
+.callout.warn    { background: var(--amber-l); border: 1px solid var(--amber-b); color: #78350f; }
+.callout-ico { font-size: 1.1rem; flex-shrink: 0; margin-top: 2px; }
+
+.emo-card { border-radius: 14px; padding: 22px 18px; text-align: center; border: 1.5px solid; margin-bottom: 12px; }
+.emo-card .ec-emoji { font-size: 3.2rem; line-height: 1; margin-bottom: 9px; }
+.emo-card .ec-name  { font-family: 'Sora', sans-serif; font-size: 1.5rem; font-weight: 700; margin-bottom: 6px; }
+.emo-card .ec-conf  { font-size: .83rem; color: #64748b; }
+
+.stat-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--bg); border-radius: 8px; margin-bottom: 6px; border: 1px solid var(--border); font-size: .84rem; }
+.stat-lbl { color: #64748b; font-weight: 500; }
+.stat-val { color: #1e293b; font-weight: 700; }
+
+.prob-wrap { margin-bottom: 11px; }
+.prob-head { display: flex; justify-content: space-between; font-size: .8rem; margin-bottom: 5px; font-weight: 700; color: #1e293b; }
+.prob-track { background: var(--bg); border-radius: 5px; height: 9px; border: 1px solid var(--border); overflow: hidden; }
+.prob-fill  { height: 9px; border-radius: 5px; transition: width .4s ease; }
+
+.dist-wrap { margin-bottom: 13px; }
+.dist-head { display: flex; justify-content: space-between; font-size: .82rem; margin-bottom: 5px; font-weight: 700; color: #1e293b; }
+.dist-sub  { color: #64748b; font-weight: 500; font-size: .78rem; }
+.dist-track { background: var(--bg); border-radius: 6px; height: 12px; border: 1px solid var(--border); overflow: hidden; }
+.dist-fill  { height: 12px; border-radius: 6px; }
+
+.hist-row { display: flex; align-items: center; gap: 10px; padding: 9px 13px; background: #fff; border: 1px solid var(--border); border-radius: 9px; margin-bottom: 5px; font-size: .81rem; transition: box-shadow .15s; }
+.hist-row:hover { box-shadow: 0 2px 10px rgba(0,0,0,.07); }
+.hist-time { color: #94a3b8; font-size: .7rem; min-width: 50px; }
+.hist-conf { color: #64748b; font-size: .73rem; margin-left: 3px; }
+.hist-meta { color: #94a3b8; font-size: .7rem; margin-left: auto; }
+
+.emo-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 20px; font-size: .71rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; border: 1.5px solid; min-width: 86px; justify-content: center; }
+
+.alert-card { display: flex; gap: 14px; padding: 14px 16px; border-radius: 12px; border: 1.5px solid; margin-bottom: 10px; }
+.alert-ico  { font-size: 1.5rem; flex-shrink: 0; padding-top: 2px; }
+.alert-body { flex: 1; }
+.alert-ttl  { font-weight: 800; font-size: .88rem; margin-bottom: 4px; }
+.alert-msg  { font-size: .79rem; color: #64748b; line-height: 1.5; }
+.sms-ok  { font-size: .72rem; color: #16a34a; font-weight: 700; margin-top: 5px; }
+.sms-err { font-size: .72rem; color: #dc2626; font-weight: 700; margin-top: 5px; }
+.sms-off { font-size: .72rem; color: #94a3b8; margin-top: 5px; }
+
+.cfg-box { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.cfg-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: .83rem; }
+.cfg-row:last-child { border-bottom: none; }
+.cfg-k { color: #64748b; font-weight: 500; }
+.cfg-v { color: #1e293b; font-weight: 700; }
+
+.how-box { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+.how-step { display: flex; gap: 12px; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: .83rem; line-height: 1.55; color: #1e293b; }
+.how-step:last-child { border-bottom: none; }
+.how-num { background: var(--green-l); color: #15803d; border: 1px solid var(--green-b); font-weight: 800; font-size: .72rem; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+
+.empty-state { background: #fff; border: 1.5px dashed #cbd5e1; border-radius: 14px; padding: 38px 26px; text-align: center; }
+.e-ico { font-size: 2.8rem; margin-bottom: 10px; }
+.e-ttl { font-family: 'Sora', sans-serif; font-size: 1rem; font-weight: 700; color: #1e293b; margin-bottom: 7px; }
+.e-sub { font-size: .82rem; color: #64748b; line-height: 1.6; }
+
+.live-badge { display: inline-flex; align-items: center; gap: 7px; background: #fee2e2; color: #dc2626; border: 1.5px solid #fca5a5; font-size: .74rem; font-weight: 800; padding: 5px 12px; border-radius: 20px; letter-spacing: .07em; }
+.live-dot   { width: 7px; height: 7px; background: #dc2626; border-radius: 50%; animation: blink 1s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+
+.result-card { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,.05); }
+
+.dom-box { border-radius: 12px; border: 1.5px solid; padding: 14px 18px; margin-top: 12px; display: flex; align-items: center; gap: 14px; }
+.dom-emo  { font-size: 2rem; }
+.dom-name { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 1rem; }
+.dom-sub  { font-size: .76rem; color: #64748b; margin-top: 2px; }
+
+.sb-brand { padding: 10px 0 6px; display: flex; align-items: center; gap: 12px; }
+.sb-logo  { font-size: 2rem; }
+.sb-name  { font-family: 'Sora', sans-serif; font-size: 1.1rem; font-weight: 700; color: #1e293b; }
+.sb-sub   { font-size: .68rem; color: #64748b; margin-top: 1px; }
+.sb-section { font-size: .68rem; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; color: #64748b; margin: 14px 0 6px; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
+
+.pw-footer { margin-top: 50px; padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; font-size: .7rem; color: #94a3b8; }
+</style>
+""", unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  MODEL DOWNLOAD + LOAD
@@ -504,7 +362,6 @@ def calc_tail(frame, bbox, prev):
     return 0.0 if a.shape!=b.shape or a.size==0 else float(np.mean(np.abs(a-b)))
 
 def process_frame(frame, model, yolo, smooth=True):
-    """smooth=True → live camera rolling window; smooth=False → raw per-frame (upload)."""
     h, w = frame.shape[:2]
     det  = detect_dog(frame, yolo)
     res  = {"dog_found":False,"emotion":"no_dog","confidence":0.0,
@@ -518,7 +375,7 @@ def process_frame(frame, model, yolo, smooth=True):
                 st.session_state.beh_window.append(raw_emo)
                 emotion = Counter(st.session_state.beh_window).most_common(1)[0][0]
             else:
-                emotion = raw_emo          # emotion always matches confidence
+                emotion = raw_emo
             pacing = calc_pacing(det["bbox"], st.session_state.pos_history)
             tail   = calc_tail(frame, det["bbox"], st.session_state.prev_frame)
             res.update({"dog_found":True,"emotion":emotion,"confidence":conf,
@@ -553,7 +410,6 @@ def maybe_alert(emotion):
             and st.session_state.phone_number):
         try:
             from twilio.rest import Client
-            # WhatsApp — both from and to must have the whatsapp: prefix
             Client(st.session_state.twilio_sid,
                    st.session_state.twilio_token).messages.create(
                 body=msg,
@@ -576,7 +432,7 @@ def record(res):
     maybe_alert(res["emotion"])
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  HTML BUILDERS  — every colour is explicit hex, never inherited from theme
+#  HTML BUILDERS
 # ══════════════════════════════════════════════════════════════════════════════
 def _badge(emo):
     c=C_HEX.get(emo,"#64748b"); bg=C_BG.get(emo,"#f1f5f9"); bd=C_BD.get(emo,"#cbd5e1")
@@ -659,17 +515,6 @@ with st.sidebar:
             "Twilio sandbox number", st.session_state.twilio_from,
             placeholder="+14155238886",
             help="The Twilio WhatsApp sandbox number is always +14155238886")
-        st.markdown("""
-        <div style="background:#fefce8;border:1px solid #fde047;border-radius:8px;
-                    padding:10px 12px;margin-top:4px;font-size:.74rem;color:#713f12;line-height:1.6">
-            <strong>⚠️ One-time setup required:</strong><br>
-            On your phone, open WhatsApp and send a message to
-            <strong>+1 415 523 8886</strong>:<br><br>
-            <code style="background:#fef08a;padding:2px 5px;border-radius:4px">join &lt;your-keyword&gt;</code><br><br>
-            Find your keyword at <em>Twilio Console → Messaging →
-            Try it out → Send a WhatsApp message</em>
-        </div>
-        """, unsafe_allow_html=True)
 
     st.divider()
     if st.button("🗑️  Clear Session Data", use_container_width=True):
@@ -708,23 +553,20 @@ n_alerts = len(st.session_state.alerts)
 c1, c2, c3, c4 = st.columns(4)
 with c1:
     st.markdown(
-        f'<div class="kpi-card">'
-        f'<div class="kpi-icon">📸</div>'
+        f'<div class="kpi-card"><div class="kpi-icon">📸</div>'
         f'<div class="kpi-num">{len(hist)}</div>'
         f'<div class="kpi-lbl">Frames Analysed</div></div>',
         unsafe_allow_html=True)
 with c2:
     st.markdown(
-        f'<div class="kpi-card">'
-        f'<div class="kpi-icon">🎯</div>'
+        f'<div class="kpi-card"><div class="kpi-icon">🎯</div>'
         f'<div class="kpi-num">{avg_conf:.1f}<span class="kpi-unit">%</span></div>'
         f'<div class="kpi-lbl">Avg Confidence</div></div>',
         unsafe_allow_html=True)
 with c3:
     ac = "#dc2626" if n_alerts else "#1e293b"
     st.markdown(
-        f'<div class="kpi-card">'
-        f'<div class="kpi-icon">🔔</div>'
+        f'<div class="kpi-card"><div class="kpi-icon">🔔</div>'
         f'<div class="kpi-num" style="color:{ac}">{n_alerts}</div>'
         f'<div class="kpi-lbl">Alerts Fired</div></div>',
         unsafe_allow_html=True)
@@ -739,140 +581,114 @@ with c4:
             unsafe_allow_html=True)
     else:
         st.markdown(
-            '<div class="kpi-card">'
-            '<div class="kpi-icon">🐕</div>'
+            '<div class="kpi-card"><div class="kpi-icon">🐕</div>'
             '<div class="kpi-num" style="font-size:1.45rem;color:#94a3b8">—</div>'
             '<div class="kpi-lbl">Dominant Emotion</div></div>',
             unsafe_allow_html=True)
 
 st.markdown("<div style='margin-bottom:4px'></div>", unsafe_allow_html=True)
 
-# ══════════════════════════════════════════════════════════════════════════════
-#  TABS
-# ══════════════════════════════════════════════════════════════════════════════
 t_live, t_demo, t_hist, t_alrt = st.tabs([
-    "📹  Live Camera",
-    "🖼️  Demo Upload",
-    "📊  Behavior History",
-    "🔔  Alert Status",
+    "📹  Live Camera", "🖼️  Demo Upload",
+    "📊  Behavior History", "🔔  Alert Status",
 ])
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TAB 1 — LIVE CAMERA  (browser webcam via streamlit-webrtc)
+# TAB 1 — LIVE CAMERA
 # ─────────────────────────────────────────────────────────────────────────────
 with t_live:
-    try:
-        from streamlit_webrtc import webrtc_streamer, WebRtcMode, RTCConfiguration
-        import av
-        WEBRTC_OK = True
-    except ImportError:
-        WEBRTC_OK = False
+    st.markdown(
+        '<div class="callout info"><span class="callout-ico">💡</span>'
+        '<span><strong>Live camera</strong> works when running this app locally. '
+        'On Streamlit Cloud use the <strong>Demo Upload</strong> tab instead.</span></div>',
+        unsafe_allow_html=True)
 
-    if not WEBRTC_OK:
-        st.markdown(
-            '<div class="callout warn"><span class="callout-ico">⚠️</span>'
-            '<span>Install <code>streamlit-webrtc</code> and <code>av</code> to enable '
-            'the live camera: <br><code>pip install streamlit-webrtc av</code></span></div>',
+    feed_col, panel_col = st.columns([3, 1], gap="large")
+
+    with panel_col:
+        st.markdown('<div class="sec-title">🐕 Current Behavior</div>', unsafe_allow_html=True)
+        emo_ph = st.empty(); conf_ph = st.empty()
+        pace_ph = st.empty(); tail_ph = st.empty()
+        st.markdown('<div class="sec-title" style="margin-top:16px">📊 Probabilities</div>',
+                    unsafe_allow_html=True)
+        bar_phs = {c: st.empty() for c in CLASSES}
+        emo_ph.markdown(
+            '<div class="empty-state" style="padding:22px 14px">'
+            '<div class="e-ico">🐕</div>'
+            '<div class="e-ttl">Waiting…</div>'
+            '<div class="e-sub">Press Start Camera</div></div>',
             unsafe_allow_html=True)
-    else:
-        st.markdown(
-            '<div class="callout success"><span class="callout-ico">📹</span>'
-            '<span>Click <strong>START</strong> below and allow browser camera access. '
-            'Works on both local and Streamlit Cloud.</span></div>',
-            unsafe_allow_html=True)
 
-        feed_col, panel_col = st.columns([3, 1], gap="large")
+    with feed_col:
+        bc1, bc2, bc3 = st.columns([1, 1, 2])
+        start_btn = bc1.button("▶️  Start Camera", use_container_width=True)
+        stop_btn  = bc2.button("⏹️  Stop",          use_container_width=True)
+        live_ph   = bc3.empty()
+        frm_ph = st.empty(); sts_ph = st.empty()
 
-        # ── Shared result store (thread-safe via session state) ──────────────
-        if "live_result" not in st.session_state:
-            st.session_state.live_result = None
+    if start_btn:
+        st.session_state.camera_running = True
+        st.session_state.beh_window.clear()
+        st.session_state.pos_history.clear()
+    if stop_btn:
+        st.session_state.camera_running = False
 
-        # ── Video processor — runs in background thread ──────────────────────
-        class DogVideoProcessor:
-            def recv(self, frame):
-                img_bgr = frame.to_ndarray(format="bgr24")
-                img_bgr = cv2.resize(img_bgr, (640, 480))
-                ann, res = process_frame(
-                    img_bgr,
-                    st.session_state.model,
-                    st.session_state.yolo,
-                    smooth=True,
-                )
-                # Store latest result for the sidebar panel
-                st.session_state.live_result = res
-                if res["dog_found"]:
-                    record(res)
-                # Return annotated frame to browser
-                return av.VideoFrame.from_ndarray(
-                    cv2.cvtColor(ann, cv2.COLOR_BGR2RGB), format="rgb24"
-                )
-
-        # ── WebRTC streamer widget ────────────────────────────────────────────
-        RTC_CONFIG = RTCConfiguration(
-            {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
-        )
-
-        with feed_col:
-            st.markdown(
-                '<div class="live-badge" style="margin-bottom:10px">'
-                '<div class="live-dot"></div>LIVE — browser webcam</div>',
+    if st.session_state.camera_running:
+        src = rtsp_url.strip() if rtsp_url.strip() else int(cam_index)
+        cap = cv2.VideoCapture(src)
+        if not cap.isOpened():
+            sts_ph.error(f"❌  Cannot open camera: {src}")
+            st.session_state.camera_running = False
+        else:
+            live_ph.markdown(
+                '<div class="live-badge"><div class="live-dot"></div>LIVE</div>',
                 unsafe_allow_html=True)
-            ctx = webrtc_streamer(
-                key="pawwatch-live",
-                mode=WebRtcMode.SENDRECV,
-                rtc_configuration=RTC_CONFIG,
-                video_processor_factory=DogVideoProcessor,
-                media_stream_constraints={"video": True, "audio": False},
-                async_processing=True,
-            )
-
-        # ── Right panel — updates every Streamlit rerun ──────────────────────
-        with panel_col:
-            st.markdown('<div class="sec-title">🐕 Current Behavior</div>',
+            while st.session_state.camera_running:
+                ret, frame = cap.read()
+                if not ret: time.sleep(0.1); continue
+                frame    = cv2.resize(frame, (640, 480))
+                ann, res = process_frame(frame, st.session_state.model,
+                                          st.session_state.yolo, smooth=True)
+                frm_ph.image(cv2.cvtColor(ann, cv2.COLOR_BGR2RGB),
+                             use_container_width=True)
+                if res["dog_found"]:
+                    emo = res["emotion"]
+                    c_ = C_HEX.get(emo,"#64748b")
+                    bg_= C_BG.get(emo,"#f1f5f9")
+                    bd_= C_BD.get(emo,"#cbd5e1")
+                    emo_ph.markdown(
+                        f'<div class="emo-card" style="background:{bg_};border-color:{bd_}">'
+                        f'<div class="ec-emoji">{EMOJI[emo]}</div>'
+                        f'<div class="ec-name" style="color:{c_}">{emo.upper()}</div>'
+                        f'<div class="ec-conf">Confidence: {res["confidence"]:.1%}</div>'
+                        f'</div>', unsafe_allow_html=True)
+                    conf_ph.markdown(
+                        f'<div class="stat-row"><span class="stat-lbl">Confidence</span>'
+                        f'<span class="stat-val" style="color:{c_}">{res["confidence"]:.1%}</span></div>',
                         unsafe_allow_html=True)
-            res = st.session_state.live_result
-
-            if res and res["dog_found"]:
-                emo = res["emotion"]
-                c_  = C_HEX.get(emo, "#64748b")
-                bg_ = C_BG.get(emo,  "#f1f5f9")
-                bd_ = C_BD.get(emo,  "#cbd5e1")
-                st.markdown(
-                    f'<div class="emo-card" style="background:{bg_};border-color:{bd_}">'
-                    f'<div class="ec-emoji">{EMOJI[emo]}</div>'
-                    f'<div class="ec-name" style="color:{c_}">{emo.upper()}</div>'
-                    f'<div class="ec-conf">Confidence: {res["confidence"]:.1%}</div>'
-                    f'</div>', unsafe_allow_html=True)
-                st.markdown(
-                    f'<div class="stat-row"><span class="stat-lbl">Confidence</span>'
-                    f'<span class="stat-val" style="color:{c_}">{res["confidence"]:.1%}</span></div>'
-                    f'<div class="stat-row"><span class="stat-lbl">Pacing Score</span>'
-                    f'<span class="stat-val">{res["pacing"]:.0f}</span></div>'
-                    f'<div class="stat-row"><span class="stat-lbl">Tail Movement</span>'
-                    f'<span class="stat-val">{res["tail"]:.1f}</span></div>',
-                    unsafe_allow_html=True)
-                st.markdown(
-                    '<div class="sec-title" style="margin-top:16px">📊 Probabilities</div>',
-                    unsafe_allow_html=True)
-                st.markdown(
-                    "".join(_prob_bar(cls, res["probs"].get(cls, 0.0))
-                            for cls in CLASSES),
-                    unsafe_allow_html=True)
-            else:
-                st.markdown(
-                    '<div class="empty-state" style="padding:22px 14px">'
-                    '<div class="e-ico">🐕</div>'
-                    '<div class="e-ttl">No dog detected</div>'
-                    '<div class="e-sub">Point the camera at your dog</div>'
-                    '</div>', unsafe_allow_html=True)
+                    pace_ph.markdown(
+                        f'<div class="stat-row"><span class="stat-lbl">Pacing Score</span>'
+                        f'<span class="stat-val">{res["pacing"]:.0f}</span></div>',
+                        unsafe_allow_html=True)
+                    tail_ph.markdown(
+                        f'<div class="stat-row"><span class="stat-lbl">Tail Movement</span>'
+                        f'<span class="stat-val">{res["tail"]:.1f}</span></div>',
+                        unsafe_allow_html=True)
+                    for cls in CLASSES:
+                        bar_phs[cls].markdown(
+                            _prob_bar(cls, res["probs"].get(cls, 0.0)),
+                            unsafe_allow_html=True)
+                    record(res)
+                time.sleep(0.06)
+            cap.release(); live_ph.empty()
+            sts_ph.info("⏹️  Camera stopped.")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # TAB 2 — DEMO UPLOAD
 # ─────────────────────────────────────────────────────────────────────────────
 with t_demo:
     mode = st.radio("What would you like to analyse?",
-                    ["📷  Single Image", "🎬  Video File"],
-                    horizontal=True)
+                    ["📷  Single Image", "🎬  Video File"], horizontal=True)
     st.markdown("<div style='margin-top:6px'></div>", unsafe_allow_html=True)
 
     if "Image" in mode:
@@ -889,31 +705,24 @@ with t_demo:
 
             img_col, res_col = st.columns(2, gap="large")
             with img_col:
-                st.markdown('<div class="sec-title">📷 Your Photo</div>',
-                            unsafe_allow_html=True)
+                st.markdown('<div class="sec-title">📷 Your Photo</div>', unsafe_allow_html=True)
                 st.image(pil, use_container_width=True)
-                st.markdown(
-                    '<div class="sec-title" style="margin-top:14px">🔍 Detected Region</div>',
-                    unsafe_allow_html=True)
-                st.image(cv2.cvtColor(ann, cv2.COLOR_BGR2RGB),
-                         use_container_width=True)
+                st.markdown('<div class="sec-title" style="margin-top:14px">🔍 Detected Region</div>',
+                            unsafe_allow_html=True)
+                st.image(cv2.cvtColor(ann, cv2.COLOR_BGR2RGB), use_container_width=True)
 
             with res_col:
-                st.markdown('<div class="sec-title">🧠 Analysis Result</div>',
-                            unsafe_allow_html=True)
+                st.markdown('<div class="sec-title">🧠 Analysis Result</div>', unsafe_allow_html=True)
                 if res["dog_found"]:
                     st.markdown(
                         _emo_result(res["emotion"], res["confidence"],
                                     res["pacing"], res["tail"]),
                         unsafe_allow_html=True)
-                    st.markdown('<div style="margin-top:14px"></div>',
+                    st.markdown('<div style="margin-top:14px"></div>', unsafe_allow_html=True)
+                    st.markdown('<div class="sec-title">📊 Emotion Probabilities</div>',
                                 unsafe_allow_html=True)
                     st.markdown(
-                        '<div class="sec-title">📊 Emotion Probabilities</div>',
-                        unsafe_allow_html=True)
-                    st.markdown(
-                        "".join(_prob_bar(cls, res["probs"].get(cls,0.0))
-                                for cls in CLASSES),
+                        "".join(_prob_bar(cls, res["probs"].get(cls,0.0)) for cls in CLASSES),
                         unsafe_allow_html=True)
                     record(res)
                 else:
@@ -921,13 +730,11 @@ with t_demo:
                         '<div class="empty-state"><div class="e-ico">🔍</div>'
                         '<div class="e-ttl">No dog detected</div>'
                         '<div class="e-sub">Try a clearer photo where the dog is '
-                        'fully visible, or lower the detection confidence in the '
-                        'sidebar.</div></div>',
+                        'fully visible, or lower the detection confidence in the sidebar.</div></div>',
                         unsafe_allow_html=True)
     else:
         up = st.file_uploader("Upload a video of your dog",
-                               type=["mp4","avi","mov","mkv"],
-                               help="MP4 recommended")
+                               type=["mp4","avi","mov","mkv"], help="MP4 recommended")
         vc1, vc2 = st.columns(2)
         every_n = vc1.slider("Sample every N frames", 1, 30, 5)
         max_fr  = vc2.slider("Max frames to process", 10, 300, 80)
@@ -949,12 +756,10 @@ with t_demo:
                     ann, res = process_frame(frame, st.session_state.model,
                                              st.session_state.yolo, smooth=False)
                     preview.image(cv2.cvtColor(ann,cv2.COLOR_BGR2RGB),
-                                  caption=f"Frame {idx}",
-                                  use_container_width=True)
+                                  caption=f"Frame {idx}", use_container_width=True)
                     if res["dog_found"]: rows.append({"frame":idx,**res}); record(res)
                     processed += 1
-                    prog.progress(min(processed/max_fr,1.0),
-                                  text=f"Analysing frame {idx}…")
+                    prog.progress(min(processed/max_fr,1.0), text=f"Analysing frame {idx}…")
                 idx += 1
             cap.release(); os.unlink(tmp_path); prog.empty(); preview.empty()
 
@@ -969,8 +774,7 @@ with t_demo:
                 st.markdown('<div class="sec-title">📊 Emotion Distribution</div>',
                             unsafe_allow_html=True)
                 st.markdown(
-                    "".join(_dist_bar(cls,
-                                      tally.get(cls,0)/total if total else 0,
+                    "".join(_dist_bar(cls, tally.get(cls,0)/total if total else 0,
                                       tally.get(cls,0)) for cls in CLASSES),
                     unsafe_allow_html=True)
                 dv = max(tally, key=tally.get)
@@ -978,18 +782,16 @@ with t_demo:
                 st.markdown(
                     f'<div class="dom-box" style="background:{dbg};border-color:{dbd}">'
                     f'<div class="dom-emo">{EMOJI[dv]}</div>'
-                    f'<div><div class="dom-name" style="color:{dc}">'
-                    f'Dominant: {dv.upper()}</div>'
+                    f'<div><div class="dom-name" style="color:{dc}">Dominant: {dv.upper()}</div>'
                     f'<div class="dom-sub">{tally[dv]} of {total} frames</div>'
-                    f'</div></div>',
-                    unsafe_allow_html=True)
+                    f'</div></div>', unsafe_allow_html=True)
             else:
                 st.markdown(
                     '<div class="empty-state"><div class="e-ico">🎬</div>'
                     '<div class="e-ttl">No dog detected</div>'
                     '<div class="e-sub">No dog found in any sampled frame. '
-                    'Try lowering the detection confidence threshold in the sidebar.'
-                    '</div></div>', unsafe_allow_html=True)
+                    'Try lowering the detection confidence threshold in the sidebar.</div></div>',
+                    unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # TAB 3 — BEHAVIOR HISTORY
@@ -1013,14 +815,12 @@ with t_hist:
             tally   = Counter(h["emotion"] for h in hist)
             total_h = len(hist)
             st.markdown(
-                "".join(_dist_bar(cls,
-                                   tally.get(cls,0)/total_h if total_h else 0,
+                "".join(_dist_bar(cls, tally.get(cls,0)/total_h if total_h else 0,
                                    tally.get(cls,0)) for cls in CLASSES),
                 unsafe_allow_html=True)
 
-            st.markdown(
-                '<div class="sec-title" style="margin-top:20px">📈 Session Stats</div>',
-                unsafe_allow_html=True)
+            st.markdown('<div class="sec-title" style="margin-top:20px">📈 Session Stats</div>',
+                        unsafe_allow_html=True)
             dom   = max(tally, key=tally.get) if tally else "—"
             avg_p = round(np.mean([h["pacing"] for h in hist]), 1)
             avg_t = round(np.mean([h["tail"]   for h in hist]), 1)
@@ -1037,8 +837,7 @@ with t_hist:
                 f'<div class="cfg-row"><span class="cfg-k">Dominant emotion</span>'
                 f'<span class="cfg-v" style="color:{C_HEX.get(dom,"#1e293b")}">'
                 f'{EMOJI.get(dom,"")} {dom.upper()}</span></div>'
-                f'</div>',
-                unsafe_allow_html=True)
+                f'</div>', unsafe_allow_html=True)
 
         with right:
             fc1, fc2 = st.columns(2)
@@ -1061,8 +860,7 @@ with t_hist:
                         f'<span class="hist-time">{e["ts"]}</span>'
                         f'{_badge(e["emotion"])}'
                         f'<span class="hist-conf">{e["confidence"]:.1f}%</span>'
-                        f'<span class="hist-meta">'
-                        f'Pace {e["pacing"]:.0f} · Tail {e["tail"]:.1f}</span>'
+                        f'<span class="hist-meta">Pace {e["pacing"]:.0f} · Tail {e["tail"]:.1f}</span>'
                         f'</div>'
                         for e in display[:100]),
                     unsafe_allow_html=True)
@@ -1113,15 +911,12 @@ with t_alrt:
                     f'<div class="alert-card" style="background:{bg_};border-color:{bd_}">'
                     f'<div class="alert-ico">{EMOJI.get(emo,"🚨")}</div>'
                     f'<div class="alert-body">'
-                    f'<div class="alert-ttl" style="color:{c_}">'
-                    f'{emo.upper()} detected · {a["ts"]}</div>'
+                    f'<div class="alert-ttl" style="color:{c_}">{emo.upper()} detected · {a["ts"]}</div>'
                     f'<div class="alert-msg">{a["message"]}</div>'
-                    f'{sms}</div></div>',
-                    unsafe_allow_html=True)
+                    f'{sms}</div></div>', unsafe_allow_html=True)
 
     with cfg_col:
-        st.markdown('<div class="sec-title">⚙️ Configuration</div>',
-                    unsafe_allow_html=True)
+        st.markdown('<div class="sec-title">⚙️ Configuration</div>', unsafe_allow_html=True)
         sms_s  = "🟢 Enabled" if st.session_state.alerts_enabled else "🔴 Disabled"
         ph_disp = ("••••" + st.session_state.phone_number[-4:]
                    if len(st.session_state.phone_number) > 4 else "—")
@@ -1138,12 +933,10 @@ with t_alrt:
             f'{len(alerts)}</span></div>'
             f'<div class="cfg-row"><span class="cfg-k">Owner phone</span>'
             f'<span class="cfg-v" style="font-size:.79rem">{ph_disp}</span></div>'
-            f'</div>',
-            unsafe_allow_html=True)
+            f'</div>', unsafe_allow_html=True)
 
-        st.markdown(
-            '<div class="sec-title" style="margin-top:20px">📖 How Alerts Work</div>',
-            unsafe_allow_html=True)
+        st.markdown('<div class="sec-title" style="margin-top:20px">📖 How Alerts Work</div>',
+                    unsafe_allow_html=True)
         st.markdown(
             '<div class="how-box">'
             '<div class="how-step"><div class="how-num">1</div>'
@@ -1156,8 +949,7 @@ with t_alrt:
             '<div>A <strong>WhatsApp message</strong> is sent via Twilio if credentials are configured in the sidebar. Must join sandbox first.</div></div>'
             '<div class="how-step"><div class="how-num">5</div>'
             '<div>All alerts are logged here for review throughout the session.</div></div>'
-            '</div>',
-            unsafe_allow_html=True)
+            '</div>', unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  FOOTER
@@ -1167,5 +959,4 @@ st.markdown(
     '<span>🐾 <strong style="color:#64748b">PawWatch</strong> '
     '— Dog Behavior &amp; Emotion Monitoring System</span>'
     '<span>MobileNetV2 · YOLOv8n · University of Greenwich · BSc Computing · 001512468</span>'
-    '</div>',
-    unsafe_allow_html=True)
+    '</div>', unsafe_allow_html=True)
