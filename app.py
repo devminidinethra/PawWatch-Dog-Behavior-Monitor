@@ -51,6 +51,7 @@ _defaults = dict(
     phone_number="", twilio_sid="", twilio_token="", twilio_from="",
     alerts_enabled=False,
     last_upload_hash=None,
+    video_results=None,
 )
 for k, v in _defaults.items():
     if k not in st.session_state:
@@ -743,6 +744,7 @@ with t_demo:
         max_fr  = vc2.slider("Max frames to process", 10, 300, 80)
 
         if up and st.button("▶️  Start Video Analysis", use_container_width=True):
+            st.session_state.video_results = None
             with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
                 tmp.write(up.read()); tmp_path = tmp.name
 
@@ -767,6 +769,9 @@ with t_demo:
             cap.release(); os.unlink(tmp_path); prog.empty(); preview.empty()
             st.rerun() 
 
+            if st.session_state.video_results is not None:
+            rows      = st.session_state.video_results["rows"]
+            processed = st.session_state.video_results["processed"]
             if rows:
                 tally = Counter(r["emotion"] for r in rows)
                 total = sum(tally.values())
@@ -778,7 +783,8 @@ with t_demo:
                 st.markdown('<div class="sec-title">📊 Emotion Distribution</div>',
                             unsafe_allow_html=True)
                 st.markdown(
-                    "".join(_dist_bar(cls, tally.get(cls,0)/total if total else 0,
+                    "".join(_dist_bar(cls,
+                                      tally.get(cls,0)/total if total else 0,
                                       tally.get(cls,0)) for cls in CLASSES),
                     unsafe_allow_html=True)
                 dv = max(tally, key=tally.get)
@@ -786,16 +792,18 @@ with t_demo:
                 st.markdown(
                     f'<div class="dom-box" style="background:{dbg};border-color:{dbd}">'
                     f'<div class="dom-emo">{EMOJI[dv]}</div>'
-                    f'<div><div class="dom-name" style="color:{dc}">Dominant: {dv.upper()}</div>'
+                    f'<div><div class="dom-name" style="color:{dc}">'
+                    f'Dominant: {dv.upper()}</div>'
                     f'<div class="dom-sub">{tally[dv]} of {total} frames</div>'
-                    f'</div></div>', unsafe_allow_html=True)
+                    f'</div></div>',
+                    unsafe_allow_html=True)
             else:
                 st.markdown(
                     '<div class="empty-state"><div class="e-ico">🎬</div>'
                     '<div class="e-ttl">No dog detected</div>'
                     '<div class="e-sub">No dog found in any sampled frame. '
-                    'Try lowering the detection confidence threshold in the sidebar.</div></div>',
-                    unsafe_allow_html=True)
+                    'Try lowering the detection confidence threshold in the sidebar.'
+                    '</div></div>', unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # TAB 3 — BEHAVIOR HISTORY
