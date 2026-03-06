@@ -48,9 +48,9 @@ _defaults = dict(
     prev_frame=None,
     phone_number="", twilio_sid="", twilio_token="", twilio_from="",
     alerts_enabled=False,
-    last_upload_hash=None,  # MD5 of last processed image — prevents duplicate recording
-    image_result=None,      # stores image analysis result across reruns
-    video_results=None,     # stores video analysis results across reruns
+    last_upload_hash=None,  
+    image_result=None,      
+    video_results=None,     
 )
 for k, v in _defaults.items():
     if k not in st.session_state:
@@ -416,7 +416,7 @@ def record(res):
     maybe_alert(res["emotion"])
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  HTML BUILDERS  — all colours hard-coded, never inherited from theme
+#  HTML BUILDERS
 # ══════════════════════════════════════════════════════════════════════════════
 def _badge(emo):
     c=C_HEX.get(emo,"#64748b"); bg=C_BG.get(emo,"#f1f5f9"); bd=C_BD.get(emo,"#cbd5e1")
@@ -661,7 +661,6 @@ with t_demo:
 
     # ══ IMAGE ══════════════════════════════════════════════════════════════════
     if "Image" in mode:
-        # Clear any stale video result when user switches to image mode
         st.session_state.video_results = None
 
         up = st.file_uploader("Upload a photo of your dog",
