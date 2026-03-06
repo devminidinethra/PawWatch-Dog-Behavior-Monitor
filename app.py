@@ -770,40 +770,40 @@ with t_demo:
             st.rerun() 
 
             if st.session_state.video_results is not None:
-            rows      = st.session_state.video_results["rows"]
-            processed = st.session_state.video_results["processed"]
-            if rows:
-                tally = Counter(r["emotion"] for r in rows)
-                total = sum(tally.values())
-                st.markdown(
-                    f'<div class="callout success"><span class="callout-ico">✅</span>'
-                    f'<span><strong>{processed} frames processed</strong> · '
-                    f'{len(rows)} dog detections · {total} emotion readings</span></div>',
-                    unsafe_allow_html=True)
-                st.markdown('<div class="sec-title">📊 Emotion Distribution</div>',
-                            unsafe_allow_html=True)
-                st.markdown(
-                    "".join(_dist_bar(cls,
-                                      tally.get(cls,0)/total if total else 0,
-                                      tally.get(cls,0)) for cls in CLASSES),
-                    unsafe_allow_html=True)
-                dv = max(tally, key=tally.get)
-                dc=C_HEX[dv]; dbg=C_BG[dv]; dbd=C_BD[dv]
-                st.markdown(
-                    f'<div class="dom-box" style="background:{dbg};border-color:{dbd}">'
-                    f'<div class="dom-emo">{EMOJI[dv]}</div>'
-                    f'<div><div class="dom-name" style="color:{dc}">'
-                    f'Dominant: {dv.upper()}</div>'
-                    f'<div class="dom-sub">{tally[dv]} of {total} frames</div>'
-                    f'</div></div>',
-                    unsafe_allow_html=True)
-            else:
-                st.markdown(
-                    '<div class="empty-state"><div class="e-ico">🎬</div>'
-                    '<div class="e-ttl">No dog detected</div>'
-                    '<div class="e-sub">No dog found in any sampled frame. '
-                    'Try lowering the detection confidence threshold in the sidebar.'
-                    '</div></div>', unsafe_allow_html=True)
+                rows      = st.session_state.video_results["rows"]
+                processed = st.session_state.video_results["processed"]
+                if rows:
+                    tally = Counter(r["emotion"] for r in rows)
+                    total = sum(tally.values())
+                    st.markdown(
+                        f'<div class="callout success"><span class="callout-ico">✅</span>'
+                        f'<span><strong>{processed} frames processed</strong> · '
+                        f'{len(rows)} dog detections · {total} emotion readings</span></div>',
+                        unsafe_allow_html=True)
+                    st.markdown('<div class="sec-title">📊 Emotion Distribution</div>',
+                                unsafe_allow_html=True)
+                    st.markdown(
+                        "".join(_dist_bar(cls,
+                                          tally.get(cls,0)/total if total else 0,
+                                          tally.get(cls,0)) for cls in CLASSES),
+                        unsafe_allow_html=True)
+                    dv = max(tally, key=tally.get)
+                    dc=C_HEX[dv]; dbg=C_BG[dv]; dbd=C_BD[dv]
+                    st.markdown(
+                        f'<div class="dom-box" style="background:{dbg};border-color:{dbd}">'
+                        f'<div class="dom-emo">{EMOJI[dv]}</div>'
+                        f'<div><div class="dom-name" style="color:{dc}">'
+                        f'Dominant: {dv.upper()}</div>'
+                        f'<div class="dom-sub">{tally[dv]} of {total} frames</div>'
+                        f'</div></div>',
+                        unsafe_allow_html=True)
+                else:
+                    st.markdown(
+                        '<div class="empty-state"><div class="e-ico">🎬</div>'
+                        '<div class="e-ttl">No dog detected</div>'
+                        '<div class="e-sub">No dog found in any sampled frame. '
+                        'Try lowering the detection confidence threshold in the sidebar.'
+                        '</div></div>', unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # TAB 3 — BEHAVIOR HISTORY
