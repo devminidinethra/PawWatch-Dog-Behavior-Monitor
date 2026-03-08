@@ -36,7 +36,6 @@ ALERT_COOLDOWN   = 60
 HISTORY_MAX      = 300
 MODEL_LOCAL_PATH = "models/final_model.h5"
 
-# ── Hardcoded credentials ─────────────────────────────────────────────────────
 LOGIN_USERNAME = "admin"
 LOGIN_PASSWORD = "pawwatch2024"
 
@@ -158,7 +157,6 @@ html, body,
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 
-/* ── Custom components ───────────────────────────────────────────────────── */
 .pw-nav {
   display: flex; align-items: center; gap: 16px; padding: 14px 24px;
   background: linear-gradient(135deg, #15803d 0%, #16a34a 60%, #22c55e 100%);
@@ -272,7 +270,6 @@ html, body,
 
 .pw-footer { margin-top:50px; padding:16px 24px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; font-size:.7rem; color:#94a3b8; }
 
-/* ── Login page ──────────────────────────────────────────────────────────── */
 .login-wrap {
   max-width: 420px; margin: 60px auto 0;
   background: #fff; border: 1px solid var(--border);
@@ -286,7 +283,6 @@ html, body,
 }
 .login-sub { font-size: .8rem; color: #64748b; text-align: center; margin-bottom: 28px; }
 
-/* ── Analysis graphs section ─────────────────────────────────────────────── */
 .graphs-section {
   background: #fff; border: 1px solid var(--border);
   border-radius: 14px; padding: 24px 22px; margin-top: 24px;
@@ -300,6 +296,43 @@ html, body,
 }
 </style>
 """, unsafe_allow_html=True)
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  MODEL DOWNLOAD + LOAD
+# ══════════════════════════════════════════════════════════════════════════════
+def download_model_if_needed():
+    if os.path.exists(MODEL_LOCAL_PATH):
+        return MODEL_LOCAL_PATH
+    url = st.secrets.get("MODEL_URL", "")
+    if not url:
+        st.error("MODEL_URL not set in Streamlit Secrets.")
+        st.stop()
+    os.makedirs("models", exist_ok=True)
+    bar = st.progress(0, text="Downloading model weights…")
+    def hook(c, bs, tot):
+        if tot > 0:
+            bar.progress(min(int(c*bs*100/tot),100)/100,
+                         text=f"Downloading… {min(int(c*bs*100/tot),100)}%")
+    try:
+        urllib.request.urlretrieve(url, MODEL_LOCAL_PATH, hook)
+        bar.empty()
+    except Exception as e:
+        bar.empty(); st.error(f"Download failed: {e}"); st.stop()
+    return MODEL_LOCAL_PATH
+
+@st.cache_resource(show_spinner="Loading emotion model…")
+def load_cnn(path):
+    import keras
+    return keras.models.load_model(path, compile=False)
+
+@st.cache_resource(show_spinner="Loading YOLOv8…")
+def load_yolo():
+    from ultralytics import YOLO
+    return YOLO("yolov8n.pt")
+
+model_path = download_model_if_needed()
+if st.session_state.model is None: st.session_state.model = load_cnn(model_path)
+if st.session_state.yolo  is None: st.session_state.yolo  = load_yolo()
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  LOGIN GATE
@@ -338,43 +371,6 @@ if not st.session_state.authenticated:
         </div>""", unsafe_allow_html=True)
 
     st.stop()
-
-# ══════════════════════════════════════════════════════════════════════════════
-#  MODEL DOWNLOAD + LOAD  
-# ══════════════════════════════════════════════════════════════════════════════
-def download_model_if_needed():
-    if os.path.exists(MODEL_LOCAL_PATH):
-        return MODEL_LOCAL_PATH
-    url = st.secrets.get("MODEL_URL", "")
-    if not url:
-        st.error("MODEL_URL not set in Streamlit Secrets.")
-        st.stop()
-    os.makedirs("models", exist_ok=True)
-    bar = st.progress(0, text="Downloading model weights…")
-    def hook(c, bs, tot):
-        if tot > 0:
-            bar.progress(min(int(c*bs*100/tot),100)/100,
-                         text=f"Downloading… {min(int(c*bs*100/tot),100)}%")
-    try:
-        urllib.request.urlretrieve(url, MODEL_LOCAL_PATH, hook)
-        bar.empty()
-    except Exception as e:
-        bar.empty(); st.error(f"Download failed: {e}"); st.stop()
-    return MODEL_LOCAL_PATH
-
-@st.cache_resource(show_spinner="Loading emotion model…")
-def load_cnn(path):
-    import keras
-    return keras.models.load_model(path, compile=False)
-
-@st.cache_resource(show_spinner="Loading YOLOv8…")
-def load_yolo():
-    from ultralytics import YOLO
-    return YOLO("yolov8n.pt")
-
-model_path = download_model_if_needed()
-if st.session_state.model is None: st.session_state.model = load_cnn(model_path)
-if st.session_state.yolo  is None: st.session_state.yolo  = load_yolo()
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  INFERENCE HELPERS
@@ -533,13 +529,6 @@ def _emo_result(emo, conf, pacing=None, tail=None):
 #  ANALYSIS GRAPHS
 # ══════════════════════════════════════════════════════════════════════════════
 def render_analysis_graphs(history_data):
-    """
-    Renders three Plotly charts beneath the existing results:
-      1. Emotion Distribution  — Bar chart
-      2. Model Confidence Over Time — Line chart (per-emotion + rolling avg)
-      3. Emotion Timeline      — Scatter chart
-    history_data: list of dicts with keys ts, emotion, confidence, pacing, tail
-    """
     import plotly.graph_objects as go
 
     if not history_data:
@@ -553,7 +542,6 @@ def render_analysis_graphs(history_data):
     df = pd.DataFrame(history_data).reset_index()
     df.rename(columns={"index": "frame_idx"}, inplace=True)
 
-    # shared layout defaults
     layout_base = dict(
         font=dict(family="Plus Jakarta Sans, sans-serif", size=12, color="#1e293b"),
         paper_bgcolor="rgba(0,0,0,0)",
@@ -567,7 +555,6 @@ def render_analysis_graphs(history_data):
     axis_style = dict(gridcolor="#f0f4f8", linecolor="#dde3ec",
                       tickfont=dict(size=11, color="#64748b"))
 
-    # ── Chart 1 · Emotion Distribution (Bar) ────────────────────────────────
     st.markdown('<div class="sec-title" style="margin-top:16px">📊 Emotion Distribution</div>',
                 unsafe_allow_html=True)
 
@@ -593,7 +580,6 @@ def render_analysis_graphs(history_data):
     )
     st.plotly_chart(fig1, use_container_width=True)
 
-    # ── Chart 2 · Model Confidence Over Time (Line) ──────────────────────────
     st.markdown('<div class="sec-title">📈 Model Confidence Over Time</div>',
                 unsafe_allow_html=True)
 
@@ -629,7 +615,6 @@ def render_analysis_graphs(history_data):
     )
     st.plotly_chart(fig2, use_container_width=True)
 
-    # ── Chart 3 · Emotion Timeline (Scatter) ────────────────────────────────
     st.markdown('<div class="sec-title">🕐 Emotion Timeline</div>',
                 unsafe_allow_html=True)
 
@@ -667,7 +652,6 @@ def render_analysis_graphs(history_data):
         height=300,
     )
     st.plotly_chart(fig3, use_container_width=True)
-
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  SIDEBAR
@@ -781,9 +765,9 @@ t_live,t_demo,t_hist,t_alrt = st.tabs([
     "📊  Behavior History","🔔  Alert Status",
 ])
 
-# ─────────────────────────────────────────────────────────────────────────────
-# TAB 1 — LIVE CAMERA
-# ─────────────────────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+#  TAB 1 — LIVE CAMERA
+# ══════════════════════════════════════════════════════════════════════════════
 with t_live:
     st.markdown(
         '<div class="callout info"><span class="callout-ico">💡</span>'
@@ -864,15 +848,14 @@ with t_live:
             cap.release(); live_ph.empty()
             sts_ph.info("Camera stopped.")
 
-# ─────────────────────────────────────────────────────────────────────────────
-# TAB 2 — DEMO UPLOAD
-# ─────────────────────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+#  TAB 2 — DEMO UPLOAD
+# ══════════════════════════════════════════════════════════════════════════════
 with t_demo:
     mode = st.radio("What would you like to analyse?",
                     ["📷  Single Image","🎬  Video File"],horizontal=True)
     st.markdown("<div style='margin-top:6px'></div>",unsafe_allow_html=True)
 
-    # ══ IMAGE ══════════════════════════════════════════════════════════════════
     if "Image" in mode:
         st.session_state.video_results = None
 
@@ -914,7 +897,6 @@ with t_demo:
             pil_disp = Image.open(io.BytesIO(ir["pil_bytes"]))
             ann_disp = Image.open(io.BytesIO(ir["ann_bytes"]))
 
-            # ── Existing two-column layout — UNCHANGED ─────────────────────
             img_col,res_col = st.columns(2,gap="large")
             with img_col:
                 st.markdown('<div class="sec-title">📷 Your Photo</div>',
@@ -947,7 +929,6 @@ with t_demo:
                         'detection confidence in the sidebar.</div></div>',
                         unsafe_allow_html=True)
 
-            # ── Analysis Graphs — full width, below existing results ────────
             if res["dog_found"] and st.session_state.history:
                 st.markdown(
                     '<div class="graphs-section">'
@@ -956,7 +937,6 @@ with t_demo:
                 render_analysis_graphs(st.session_state.history)
                 st.markdown('</div>', unsafe_allow_html=True)
 
-    # ══ VIDEO ══════════════════════════════════════════════════════════════════
     else:
         st.session_state.image_result     = None
         st.session_state.last_upload_hash = None
@@ -1015,7 +995,6 @@ with t_demo:
                     f'{len(rows)} dog detections · {total} emotion readings</span></div>',
                     unsafe_allow_html=True)
 
-                # ── Existing two-column layout — UNCHANGED ──────────────────
                 left_v,right_v = st.columns(2,gap="large")
 
                 with left_v:
@@ -1043,7 +1022,6 @@ with t_demo:
                                                for r in rows if r.get("probs")]))
                         st.markdown(_prob_bar(cls,avg_p),unsafe_allow_html=True)
 
-                # ── Analysis Graphs — full width, below existing results ────
                 video_hist = [
                     {
                         "ts": f"f{r['frame']}",
@@ -1069,9 +1047,9 @@ with t_demo:
                     'Try lowering the detection confidence threshold in the sidebar.</div></div>',
                     unsafe_allow_html=True)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# TAB 3 — BEHAVIOR HISTORY
-# ─────────────────────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+#  TAB 3 — BEHAVIOR HISTORY
+# ══════════════════════════════════════════════════════════════════════════════
 with t_hist:
     hist=st.session_state.history
     if not hist:
@@ -1146,9 +1124,9 @@ with t_hist:
             st.download_button("⬇️  Download pawwatch_history.csv",
                                csv,"pawwatch_history.csv","text/csv")
 
-# ─────────────────────────────────────────────────────────────────────────────
-# TAB 4 — ALERT STATUS
-# ─────────────────────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+#  TAB 4 — ALERT STATUS
+# ══════════════════════════════════════════════════════════════════════════════
 with t_alrt:
     log_col,cfg_col=st.columns([3,2],gap="large")
     with log_col:
