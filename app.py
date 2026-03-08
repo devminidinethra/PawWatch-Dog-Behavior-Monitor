@@ -367,7 +367,7 @@ if not st.session_state.authenticated:
 
         st.markdown("""
         <div style="text-align:center;margin-top:20px;font-size:.72rem;color:#94a3b8">
-          University of Greenwich · BSc Computing · 001512468
+          University of Greenwich · BSc Computing 
         </div>""", unsafe_allow_html=True)
 
     st.stop()
@@ -747,7 +747,7 @@ with st.sidebar:
     st.markdown("""
     <div style="margin-top:20px;padding-top:12px;border-top:1px solid #dde3ec;
                 font-size:.67rem;color:#94a3b8;text-align:center;line-height:1.65">
-        University of Greenwich<br>BSc Computing · 001512468<br>MobileNetV2 + YOLOv8n
+        University of Greenwich<br>BSc Computing <br>MobileNetV2 + YOLOv8n
     </div>""", unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1242,5 +1242,5 @@ with t_alrt:
 st.markdown(
     '<div class="pw-footer">'
     '<span>🐾 <strong style="color:#64748b">PawWatch</strong> — Dog Behavior &amp; Emotion Monitoring</span>'
-    '<span>MobileNetV2 · YOLOv8n · University of Greenwich · BSc Computing · 001512468</span>'
+    '<span>MobileNetV2 · YOLOv8n · University of Greenwich · BSc Computing </span>'
     '</div>',unsafe_allow_html=True)
