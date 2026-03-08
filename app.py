@@ -36,6 +36,10 @@ ALERT_COOLDOWN   = 60
 HISTORY_MAX      = 300
 MODEL_LOCAL_PATH = "models/final_model.h5"
 
+# ── Hardcoded credentials ─────────────────────────────────────────────────────
+LOGIN_USERNAME = "admin"
+LOGIN_PASSWORD = "pawwatch2024"
+
 # ══════════════════════════════════════════════════════════════════════════════
 #  SESSION STATE
 # ══════════════════════════════════════════════════════════════════════════════
@@ -48,9 +52,10 @@ _defaults = dict(
     prev_frame=None,
     phone_number="", twilio_sid="", twilio_token="", twilio_from="",
     alerts_enabled=False,
-    last_upload_hash=None,  
-    image_result=None,      
-    video_results=None,     
+    last_upload_hash=None,
+    image_result=None,
+    video_results=None,
+    authenticated=False,
 )
 for k, v in _defaults.items():
     if k not in st.session_state:
@@ -266,11 +271,76 @@ html, body,
 .sb-section { font-size:.68rem; font-weight:800; text-transform:uppercase; letter-spacing:.1em; color:#64748b; margin:14px 0 6px; padding-bottom:4px; border-bottom:1px solid var(--border); }
 
 .pw-footer { margin-top:50px; padding:16px 24px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; font-size:.7rem; color:#94a3b8; }
+
+/* ── Login page ──────────────────────────────────────────────────────────── */
+.login-wrap {
+  max-width: 420px; margin: 60px auto 0;
+  background: #fff; border: 1px solid var(--border);
+  border-radius: 18px; padding: 40px 36px;
+  box-shadow: 0 8px 40px rgba(0,0,0,.09);
+}
+.login-logo  { font-size: 3rem; text-align: center; margin-bottom: 6px; }
+.login-title {
+  font-family: 'Sora', sans-serif; font-size: 1.5rem; font-weight: 700;
+  color: #1e293b; text-align: center; margin-bottom: 4px;
+}
+.login-sub { font-size: .8rem; color: #64748b; text-align: center; margin-bottom: 28px; }
+
+/* ── Analysis graphs section ─────────────────────────────────────────────── */
+.graphs-section {
+  background: #fff; border: 1px solid var(--border);
+  border-radius: 14px; padding: 24px 22px; margin-top: 24px;
+  box-shadow: 0 2px 10px rgba(0,0,0,.04);
+}
+.graphs-title {
+  font-family: 'Sora', sans-serif; font-size: 1rem; font-weight: 700;
+  color: #1e293b; display: flex; align-items: center; gap: 9px;
+  padding-bottom: 12px; margin-bottom: 2px;
+  border-bottom: 2px solid var(--border);
+}
 </style>
 """, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  MODEL DOWNLOAD + LOAD
+#  LOGIN GATE
+# ══════════════════════════════════════════════════════════════════════════════
+if not st.session_state.authenticated:
+    _, mid, _ = st.columns([1, 1.6, 1])
+    with mid:
+        st.markdown("""
+        <div class="login-logo">🐾</div>
+        <div class="login-title">PawWatch</div>
+        <div class="login-sub">Dog Behavior &amp; Emotion Monitoring<br>
+        Please sign in to continue</div>
+        """, unsafe_allow_html=True)
+
+        username_input = st.text_input("Username", placeholder="Enter username",
+                                       key="login_user")
+        password_input = st.text_input("Password", placeholder="Enter password",
+                                       type="password", key="login_pass")
+        login_btn = st.button("🔐  Sign In", use_container_width=True)
+
+        if login_btn:
+            if username_input == LOGIN_USERNAME and password_input == LOGIN_PASSWORD:
+                st.session_state.authenticated = True
+                st.rerun()
+            else:
+                st.markdown("""
+                <div class="callout warn" style="margin-top:12px">
+                  <span class="callout-ico">⚠️</span>
+                  <span><strong>Invalid credentials.</strong> Please check your
+                  username and password and try again.</span>
+                </div>""", unsafe_allow_html=True)
+
+        st.markdown("""
+        <div style="text-align:center;margin-top:20px;font-size:.72rem;color:#94a3b8">
+          University of Greenwich · BSc Computing · 001512468
+        </div>""", unsafe_allow_html=True)
+
+    st.stop()
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  MODEL DOWNLOAD + LOAD  
 # ══════════════════════════════════════════════════════════════════════════════
 def download_model_if_needed():
     if os.path.exists(MODEL_LOCAL_PATH):
@@ -366,7 +436,6 @@ def process_frame(frame, model, yolo, smooth=True):
                         "bbox":det["bbox"]})
             col = C_BGT.get(emotion,(120,120,120))
             cv2.rectangle(frame,(x1,y1),(x2,y2),col,2)
-            # cv2.putText cannot render Unicode/emoji — plain ASCII only
             lbl = f"{emotion.upper()}  {conf:.0%}"
             (tw,th),_ = cv2.getTextSize(lbl, cv2.FONT_HERSHEY_SIMPLEX, .65, 2)
             cv2.rectangle(frame,(x1,y1-th-12),(x1+tw+10,y1),col,-1)
@@ -461,6 +530,146 @@ def _emo_result(emo, conf, pacing=None, tail=None):
             f'</div>{stats}</div>')
 
 # ══════════════════════════════════════════════════════════════════════════════
+#  ANALYSIS GRAPHS
+# ══════════════════════════════════════════════════════════════════════════════
+def render_analysis_graphs(history_data):
+    """
+    Renders three Plotly charts beneath the existing results:
+      1. Emotion Distribution  — Bar chart
+      2. Model Confidence Over Time — Line chart (per-emotion + rolling avg)
+      3. Emotion Timeline      — Scatter chart
+    history_data: list of dicts with keys ts, emotion, confidence, pacing, tail
+    """
+    import plotly.graph_objects as go
+
+    if not history_data:
+        st.markdown(
+            '<div class="empty-state" style="margin:0"><div class="e-ico">📊</div>'
+            '<div class="e-ttl">No data for graphs yet</div>'
+            '<div class="e-sub">Analyse an image or video first to populate these charts.</div></div>',
+            unsafe_allow_html=True)
+        return
+
+    df = pd.DataFrame(history_data).reset_index()
+    df.rename(columns={"index": "frame_idx"}, inplace=True)
+
+    # shared layout defaults
+    layout_base = dict(
+        font=dict(family="Plus Jakarta Sans, sans-serif", size=12, color="#1e293b"),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        margin=dict(l=14, r=14, t=38, b=14),
+        legend=dict(
+            orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1,
+            bgcolor="rgba(0,0,0,0)", bordercolor="#dde3ec", borderwidth=1,
+        ),
+    )
+    axis_style = dict(gridcolor="#f0f4f8", linecolor="#dde3ec",
+                      tickfont=dict(size=11, color="#64748b"))
+
+    # ── Chart 1 · Emotion Distribution (Bar) ────────────────────────────────
+    st.markdown('<div class="sec-title" style="margin-top:16px">📊 Emotion Distribution</div>',
+                unsafe_allow_html=True)
+
+    tally  = Counter(df["emotion"])
+    labels = [c for c in CLASSES if c in tally]
+    counts = [tally[c] for c in labels]
+    colors = [C_HEX[c] for c in labels]
+    bgs    = [C_BG[c]  for c in labels]
+
+    fig1 = go.Figure(go.Bar(
+        x=labels, y=counts,
+        marker=dict(color=colors, line=dict(color=bgs, width=2)),
+        text=counts, textposition="outside",
+        textfont=dict(size=14, color="#1e293b",
+                      family="Plus Jakarta Sans, sans-serif"),
+        hovertemplate="<b>%{x}</b><br>Detections: %{y}<extra></extra>",
+    ))
+    fig1.update_layout(
+        **layout_base,
+        xaxis=dict(title=None, **axis_style),
+        yaxis=dict(title="Detections", **axis_style),
+        showlegend=False, bargap=0.38, height=300,
+    )
+    st.plotly_chart(fig1, use_container_width=True)
+
+    # ── Chart 2 · Model Confidence Over Time (Line) ──────────────────────────
+    st.markdown('<div class="sec-title">📈 Model Confidence Over Time</div>',
+                unsafe_allow_html=True)
+
+    fig2 = go.Figure()
+    for emo in CLASSES:
+        sub = df[df["emotion"] == emo]
+        if sub.empty: continue
+        fig2.add_trace(go.Scatter(
+            x=sub["frame_idx"], y=sub["confidence"],
+            mode="lines+markers",
+            name=emo.capitalize(),
+            line=dict(color=C_HEX[emo], width=2),
+            marker=dict(size=7, color=C_HEX[emo],
+                        line=dict(width=1.5, color="#fff")),
+            hovertemplate=(
+                f"<b>{emo.capitalize()}</b><br>"
+                "Frame: %{x}<br>Confidence: %{y:.1f}%<extra></extra>"
+            ),
+        ))
+
+    df["conf_ma"] = df["confidence"].rolling(window=5, min_periods=1).mean()
+    fig2.add_trace(go.Scatter(
+        x=df["frame_idx"], y=df["conf_ma"],
+        mode="lines", name="Rolling avg (5)",
+        line=dict(color="#94a3b8", width=2, dash="dot"),
+        hovertemplate="Rolling avg: %{y:.1f}%<extra></extra>",
+    ))
+    fig2.update_layout(
+        **layout_base,
+        xaxis=dict(title="Frame #", **axis_style),
+        yaxis=dict(title="Confidence (%)", range=[0, 105], **axis_style),
+        height=320,
+    )
+    st.plotly_chart(fig2, use_container_width=True)
+
+    # ── Chart 3 · Emotion Timeline (Scatter) ────────────────────────────────
+    st.markdown('<div class="sec-title">🕐 Emotion Timeline</div>',
+                unsafe_allow_html=True)
+
+    emo_order = {c: i for i, c in enumerate(CLASSES)}
+    df["emo_num"] = df["emotion"].map(emo_order)
+
+    fig3 = go.Figure()
+    for emo in CLASSES:
+        sub = df[df["emotion"] == emo]
+        if sub.empty: continue
+        fig3.add_trace(go.Scatter(
+            x=sub["frame_idx"], y=sub["emo_num"],
+            mode="markers",
+            name=emo.capitalize(),
+            marker=dict(
+                size=13, color=C_HEX[emo], symbol="circle",
+                line=dict(width=2, color="#fff"),
+            ),
+            customdata=sub["confidence"],
+            hovertemplate=(
+                f"<b>{emo.capitalize()}</b><br>"
+                "Frame: %{x}<br>"
+                "Confidence: %{customdata:.1f}%<extra></extra>"
+            ),
+        ))
+    fig3.update_layout(
+        **layout_base,
+        xaxis=dict(title="Frame #", **axis_style),
+        yaxis=dict(
+            title=None,
+            tickvals=list(range(len(CLASSES))),
+            ticktext=[c.capitalize() for c in CLASSES],
+            **axis_style,
+        ),
+        height=300,
+    )
+    st.plotly_chart(fig3, use_container_width=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 #  SIDEBAR
 # ══════════════════════════════════════════════════════════════════════════════
 with st.sidebar:
@@ -504,6 +713,10 @@ with st.sidebar:
         st.session_state.last_upload_hash = None
         st.session_state.beh_window.clear()
         st.session_state.pos_history.clear()
+        st.rerun()
+
+    if st.button("🚪  Sign Out", use_container_width=True):
+        st.session_state.authenticated = False
         st.rerun()
 
     st.markdown("""
@@ -701,6 +914,7 @@ with t_demo:
             pil_disp = Image.open(io.BytesIO(ir["pil_bytes"]))
             ann_disp = Image.open(io.BytesIO(ir["ann_bytes"]))
 
+            # ── Existing two-column layout — UNCHANGED ─────────────────────
             img_col,res_col = st.columns(2,gap="large")
             with img_col:
                 st.markdown('<div class="sec-title">📷 Your Photo</div>',
@@ -733,6 +947,15 @@ with t_demo:
                         'detection confidence in the sidebar.</div></div>',
                         unsafe_allow_html=True)
 
+            # ── Analysis Graphs — full width, below existing results ────────
+            if res["dog_found"] and st.session_state.history:
+                st.markdown(
+                    '<div class="graphs-section">'
+                    '<div class="graphs-title">📉 Analysis Graphs</div>',
+                    unsafe_allow_html=True)
+                render_analysis_graphs(st.session_state.history)
+                st.markdown('</div>', unsafe_allow_html=True)
+
     # ══ VIDEO ══════════════════════════════════════════════════════════════════
     else:
         st.session_state.image_result     = None
@@ -746,7 +969,7 @@ with t_demo:
         max_fr  = vc2.slider("Max frames to process",10,300,80)
 
         if up and st.button("▶️  Start Video Analysis",use_container_width=True):
-            st.session_state.video_results = None  # clear previous
+            st.session_state.video_results = None
 
             with tempfile.NamedTemporaryFile(delete=False,suffix=".mp4") as tmp:
                 tmp.write(up.read()); tmp_path=tmp.name
@@ -792,6 +1015,7 @@ with t_demo:
                     f'{len(rows)} dog detections · {total} emotion readings</span></div>',
                     unsafe_allow_html=True)
 
+                # ── Existing two-column layout — UNCHANGED ──────────────────
                 left_v,right_v = st.columns(2,gap="large")
 
                 with left_v:
@@ -818,6 +1042,25 @@ with t_demo:
                         avg_p = float(np.mean([r["probs"].get(cls,0.0)
                                                for r in rows if r.get("probs")]))
                         st.markdown(_prob_bar(cls,avg_p),unsafe_allow_html=True)
+
+                # ── Analysis Graphs — full width, below existing results ────
+                video_hist = [
+                    {
+                        "ts": f"f{r['frame']}",
+                        "emotion": r["emotion"],
+                        "confidence": round(r["confidence"] * 100, 1),
+                        "pacing": r["pacing"],
+                        "tail": r["tail"],
+                    }
+                    for r in rows
+                ]
+                st.markdown(
+                    '<div class="graphs-section">'
+                    '<div class="graphs-title">📉 Analysis Graphs</div>',
+                    unsafe_allow_html=True)
+                render_analysis_graphs(video_hist)
+                st.markdown('</div>', unsafe_allow_html=True)
+
             else:
                 st.markdown(
                     '<div class="empty-state"><div class="e-ico">🎬</div>'
