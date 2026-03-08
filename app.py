@@ -676,6 +676,34 @@ with st.sidebar:
     st.session_state.alerts_enabled = st.toggle(
         "Enable WhatsApp alerts via Twilio", st.session_state.alerts_enabled)
     if st.session_state.alerts_enabled:
+        st.markdown("""
+        <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;
+                    padding:11px 13px;margin-bottom:10px;font-size:.75rem;
+                    color:#78350f;line-height:1.6">
+          <div style="font-weight:800;margin-bottom:5px;font-size:.78rem">
+            📋 Twilio Setup Guide
+          </div>
+          <div style="margin-bottom:4px">
+            <strong>1.</strong> Go to
+            <a href="https://www.twilio.com/try-twilio" target="_blank"
+               style="color:#92400e;font-weight:700">twilio.com/try-twilio</a>
+            and create a free account.
+          </div>
+          <div style="margin-bottom:4px">
+            <strong>2.</strong> In the Console, copy your
+            <em>Account SID</em> and <em>Auth Token</em>.
+          </div>
+          <div style="margin-bottom:4px">
+            <strong>3.</strong> Go to <em>Messaging → Try it out →
+            Send a WhatsApp message</em> and join the sandbox by sending
+            the join code to <strong>+14155238886</strong>.
+          </div>
+          <div>
+            <strong>4.</strong> Enter your details below and your WhatsApp
+            number (with country code, e.g. +94761234567).
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
         st.session_state.phone_number = st.text_input(
             "Your WhatsApp number", st.session_state.phone_number,
             placeholder="+94761234567", help="Include country code")
@@ -690,17 +718,30 @@ with st.sidebar:
 
     st.divider()
     if st.button("🗑️  Clear Session Data", use_container_width=True):
-        st.session_state.history       = []
-        st.session_state.alerts        = []
-        st.session_state.image_result  = None
-        st.session_state.video_results = None
+        st.session_state.history          = []
+        st.session_state.alerts           = []
+        st.session_state.image_result     = None
+        st.session_state.video_results    = None
         st.session_state.last_upload_hash = None
-        st.session_state.beh_window.clear()
-        st.session_state.pos_history.clear()
+        st.session_state.camera_running   = False
+        st.session_state.last_alert_ts    = 0
+        st.session_state.prev_frame       = None
+        st.session_state.beh_window       = deque(maxlen=10)
+        st.session_state.pos_history      = deque(maxlen=15)
         st.rerun()
 
     if st.button("🚪  Sign Out", use_container_width=True):
-        st.session_state.authenticated = False
+        st.session_state.authenticated    = False
+        st.session_state.camera_running   = False
+        st.session_state.history          = []
+        st.session_state.alerts           = []
+        st.session_state.image_result     = None
+        st.session_state.video_results    = None
+        st.session_state.last_upload_hash = None
+        st.session_state.last_alert_ts    = 0
+        st.session_state.prev_frame       = None
+        st.session_state.beh_window       = deque(maxlen=10)
+        st.session_state.pos_history      = deque(maxlen=15)
         st.rerun()
 
     st.markdown("""
