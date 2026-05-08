@@ -1,5 +1,5 @@
 """
-PawWatch — Dog Behavior & Emotion Monitoring System
+PawWatch — Dog Behavior & Emotion Monitoring Syste
 """
 
 import os
